@@ -1,0 +1,91 @@
+﻿/*
+ * SonarAnalyzer for .NET
+ * Copyright (C) SonarSource Sàrl
+ * mailto:info AT sonarsource DOT com
+ *
+ * You can redistribute and/or modify this program under the terms of
+ * the Sonar Source-Available License Version 1, as published by SonarSource Sàrl.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the Sonar Source-Available License for more details.
+ *
+ * You should have received a copy of the Sonar Source-Available License
+ * along with this program; if not, see https://sonarsource.com/license/ssal/
+ */
+
+namespace Roslyn.Utilities.SonarAnalyzer.Shared;
+
+public static class LoggingFrameworkMethods
+{
+    public static readonly HashSet<string> MicrosoftExtensionsLogging =
+    [
+        "Log",
+        "LogCritical",
+        "LogDebug",
+        "LogError",
+        "LogInformation",
+        "LogTrace",
+        "LogWarning"
+    ];
+
+    public static readonly HashSet<string> CastleCoreOrCommonCore =
+    [
+        "Debug",
+        "DebugFormat",
+        "Error",
+        "ErrorFormat",
+        "Fatal",
+        "FatalFormat",
+        "Info",
+        "InfoFormat",
+        "Trace",
+        "TraceFormat",
+        "Warn",
+        "WarnFormat"
+    ];
+
+    public static readonly HashSet<string> Log4NetILog =
+    [
+        "Debug",
+        "Error",
+        "Fatal",
+        "Info",
+        "Warn"
+    ];
+
+    public static readonly HashSet<string> Log4NetILogExtensions =
+    [
+        "DebugExt",
+        "ErrorExt",
+        "FatalExt",
+        "InfoExt",
+        "WarnExt"
+    ];
+
+    public static readonly HashSet<string> Serilog =
+    [
+        "Debug",
+        "Error",
+        "Information",
+        "Fatal",
+        "Warning",
+        "Write",
+        "Verbose",
+    ];
+
+    public static readonly HashSet<string> NLogLoggingMethods =
+    [
+        "Debug",
+        "ConditionalDebug",
+        "Error",
+        "Fatal",
+        "Info",
+        "Trace",
+        "ConditionalTrace",
+        "Warn"
+    ];
+
+    public static readonly HashSet<string> NLogILoggerBase = ["Log"];
+}

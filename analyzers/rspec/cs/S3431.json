@@ -1,0 +1,23 @@
+{
+  "title": "\"[ExpectedException]\" should not be used",
+  "type": "CODE_SMELL",
+  "code": {
+    "impacts": {
+      "MAINTAINABILITY": "MEDIUM"
+    },
+    "attribute": "CLEAR"
+  },
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "5min"
+  },
+  "tags": [
+    "tests"
+  ],
+  "defaultSeverity": "Major",
+  "ruleSpecification": "RSPEC-3431",
+  "sqKey": "S3431",
+  "scope": "Tests",
+  "quickfix": "unknown"
+}

@@ -1,0 +1,31 @@
+<h2>Why is this an issue?</h2>
+<p>Pointer and unmanaged function pointer types such as <code>IntPtr</code>, <code>UIntPtr</code>, <code>int*</code> etc. are used to access unmanaged
+memory, usually in order to use C or C++ libraries. If such a pointer is not secured by making it <code>private</code>, <code>internal</code> or
+<code>readonly</code>, it can lead to a vulnerability allowing access to arbitrary locations.</p>
+<h3>Noncompliant code example</h3>
+<pre>
+using System;
+
+namespace MyLibrary
+{
+  public class MyClass
+  {
+    public IntPtr myPointer;  // Noncompliant
+    protected UIntPtr myOtherPointer; // Noncompliant
+  }
+}
+</pre>
+<h3>Compliant solution</h3>
+<pre>
+using System;
+
+namespace MyLibrary
+{
+  public class MyClass
+  {
+    private IntPtr myPointer;
+    protected readonly UIntPtr myOtherPointer;
+  }
+}
+</pre>
+

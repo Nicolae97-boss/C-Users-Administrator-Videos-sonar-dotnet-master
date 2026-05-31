@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.sonarsource.dotnet</groupId>
+    <artifactId>sonar-dotnet</artifactId>
+    <version>10.27-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>sonar-csharp-plugin</artifactId>
+  <packaging>sonar-plugin</packaging>
+
+  <name>SonarC#</name>
+  <description>Code Analyzer for C#</description>
+  <url>http://redirect.sonarsource.com/plugins/csharp.html</url>
+  <inceptionYear>2014</inceptionYear>
+
+  <licenses>
+    <license>
+      <name>SSALv1</name>
+      <url>https://sonarsource.com/license/ssal/</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <dependencies>
+    <!-- provided at runtime -->
+    <dependency>
+      <groupId>org.sonarsource.api.plugin</groupId>
+      <artifactId>sonar-plugin-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- compiled -->
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>sonar-dotnet-core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>sonar-csharp-core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.sonarsource.analyzer-commons</groupId>
+      <artifactId>sonar-analyzer-commons</artifactId>
+    </dependency>
+
+    <!-- test dependencies -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.codehaus.woodstox</groupId>
+      <artifactId>stax2-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.codehaus.staxmate</groupId>
+      <artifactId>staxmate</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>org.codehaus.woodstox</groupId>
+          <artifactId>woodstox-core-asl</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>stax</groupId>
+          <artifactId>stax-api</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.codehaus.woodstox</groupId>
+          <artifactId>stax2-api</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.sonarsource.sonarqube</groupId>
+      <artifactId>sonar-plugin-api-impl</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>junit</groupId>
+          <artifactId>junit</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.sonarsource.api.plugin</groupId>
+      <artifactId>sonar-plugin-api-test-fixtures</artifactId>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <resources>
+      <resource>
+        <directory>../</directory>
+        <targetPath>licenses</targetPath>
+        <includes>
+          <include>LICENSE.txt</include>
+        </includes>
+      </resource>
+      <resource>
+        <directory>../Licenses/THIRD_PARTY_LICENSES</directory>
+        <targetPath>licenses/THIRD_PARTY_LICENSES</targetPath>
+        <excludes>
+          <exclude>org.sonarsource.dotnet.sonar-vbnet-core-LICENSE.txt</exclude>
+        </excludes>
+      </resource>
+      <resource>
+        <directory>${sonarAnalyzer.workDirectory}</directory>
+        <includes>
+          <include>org/sonar/plugins/csharp/*.json</include>
+          <include>org/sonar/plugins/csharp/*.html</include>
+          <include>static/SonarAnalyzer-csharp-${project.version}.zip</include>
+        </includes>
+      </resource>
+    </resources>
+
+    <plugins>
+      <plugin>
+        <groupId>org.sonarsource.sonar-packaging-maven-plugin</groupId>
+        <artifactId>sonar-packaging-maven-plugin</artifactId>
+        <configuration>
+          <pluginName>C# Code Quality and Security</pluginName>
+          <pluginClass>org.sonar.plugins.csharp.CSharpPlugin</pluginClass>
+          <skipDependenciesPackaging>true</skipDependenciesPackaging>
+          <sonarLintSupported>false</sonarLintSupported>
+          <pluginApiMinVersion>${plugin.api.min.version}</pluginApiMinVersion>
+          <requiredForLanguages>cs</requiredForLanguages>
+        </configuration>
+      </plugin>
+      <plugin>
+        <artifactId>maven-shade-plugin</artifactId>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <shadedArtifactAttached>false</shadedArtifactAttached>
+              <createDependencyReducedPom>false</createDependencyReducedPom>
+              <minimizeJar>true</minimizeJar>
+              <filters>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/LICENSE*</exclude>
+                    <exclude>META-INF/NOTICE*</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>license/*</exclude>
+                    <exclude>LICENSE*</exclude>
+                    <exclude>NOTICE*</exclude>
+                  </excludes>
+                </filter>
+              </filters>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>enforce-plugin-size</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <phase>verify</phase>
+            <configuration>
+              <rules>
+                <requireFilesSize>
+                  <maxsize>5800000</maxsize>
+                  <minsize>5600000</minsize>
+                  <files>
+                    <file>${project.build.directory}/${project.build.finalName}.jar</file>
+                  </files>
+                </requireFilesSize>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <version>3.2.0</version>
+        <executions>
+          <execution>
+            <id>copy-analyzer-data</id>
+            <phase>validate</phase>
+            <configuration>
+              <exportAntProperties>true</exportAntProperties>
+              <target>
+                <copy todir="${sonarAnalyzer.workDirectory}/SonarAnalyzer.CSharp">
+                  <fileset dir="${packaging.directory}/binaries/SonarAnalyzer.CSharp/">
+                    <include name="*.dll"/>
+                  </fileset>
+                </copy>
+                <copy todir="${sonarAnalyzer.workDirectory}/SonarAnalyzer.CSharp/licenses/">
+                  <fileset dir="${project.build.directory}/../..">
+                    <include name="LICENSE.txt"/>
+                  </fileset>
+                </copy>
+                <copy todir="${sonarAnalyzer.workDirectory}/SonarAnalyzer.CSharp/licenses/THIRD_PARTY_LICENSES/">
+                  <fileset dir="${packaging.directory}/Licenses/THIRD_PARTY_LICENSES/">
+                    <include name="*.txt"/>
+                  </fileset>
+                </copy>
+                <zip destfile="${sonarAnalyzer.workDirectory}/static/SonarAnalyzer-csharp-${project.version}.zip"
+                     basedir="${sonarAnalyzer.workDirectory}/SonarAnalyzer.CSharp"/>
+                <copy todir="${sonarAnalyzer.workDirectory}/org/sonar/plugins/csharp">
+                  <fileset dir="${rspec.directory}/cs">
+                    <include name="*.json"/>
+                    <include name="*.html"/>
+                  </fileset>
+                </copy>
+                <exec executable="dotnet"
+                      failonerror="true"
+                      dir="${packaging.directory}/binaries/RuleDescriptorGenerator">
+                  <arg value="RuleDescriptorGenerator.dll"/>
+                  <arg value="${sonarAnalyzer.workDirectory}/org/sonar/plugins/csharp/Rules.json"/>
+                  <arg value="${packaging.directory}/binaries/SonarAnalyzer.CSharp/SonarAnalyzer.CSharp.dll"/>
+                </exec>
+              </target>
+            </configuration>
+            <goals>
+              <goal>run</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

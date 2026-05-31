@@ -1,0 +1,73 @@
+<h2>Why is this an issue?</h2>
+<p>In C#, the type of a variable can often be inferred by the compiler. The use of the [var keyword](<a
+href="https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/implicitly-typed-local-variables">https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/implicitly-typed-local-variables</a>)
+allows you to avoid repeating the type name in a variable declaration and object instantiation because the declared type can often be inferred by the
+compiler.</p>
+<p>Additionally, initializations providing the default value can also be omitted, helping to make the code more concise and readable.</p>
+<p>Unnecessarily verbose declarations and initializations should be simplified. Specifically, the following should be omitted when they can be
+inferred:</p>
+<ul>
+  <li>array element type</li>
+  <li>array size</li>
+  <li><code>new DelegateType</code></li>
+  <li><code>new Nullable&lt;Type&gt;</code></li>
+  <li>object or collection initializers ({})</li>
+  <li>type of lambda expression parameters</li>
+  <li>parameter declarations of anonymous methods when the parameters are not used.</li>
+</ul>
+<h2>How to fix it</h2>
+<p>Remove any unneeded code. C# provides many features designed to help you write more concise code.</p>
+<h3>Code examples</h3>
+<h4>Noncompliant code example</h4>
+<pre data-diff-id="1" data-diff-type="noncompliant">
+var l = new List&lt;int&gt;() {}; // Noncompliant, {} can be removed
+var o = new object() {}; // Noncompliant, {} can be removed
+
+var ints = new int[] {1, 2, 3}; // Noncompliant, int can be omitted
+ints = new int[3] {1, 2, 3}; // Noncompliant, the size specification can be removed
+
+int? i = new int?(5); // Noncompliant new int? could be omitted, it can be inferred from the declaration, and there's implicit conversion from T to T?
+var j = new int?(5);
+
+Func&lt;int, int&gt; f1 = (int i) =&gt; 1; //Noncompliant, can be simplified
+
+class Class
+{
+    private event EventHandler MyEvent;
+
+    public Class()
+    {
+        MyEvent += new EventHandler((a,b)=&gt;{ }); // Noncompliant, needlessly verbose
+    }
+}
+</pre>
+<h4>Compliant solution</h4>
+<pre data-diff-id="1" data-diff-type="compliant">
+var l = new List&lt;int&gt;();
+var o = new object();
+
+var ints = new [] {1, 2, 3};
+ints = new [] {1, 2, 3};
+
+int? i = 5;
+var j = new int?(5);
+
+Func&lt;int, int&gt; f1 = (i) =&gt; 1;
+
+class Class
+{
+    private event EventHandler MyEvent;
+
+    public Class()
+    {
+        MyEvent += (a,b)=&gt;{ };
+    }
+}
+</pre>
+<h2>Resources</h2>
+<h3>Documentation</h3>
+<ul>
+  <li>Microsoft Learn - <a href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/statements/declarations">Declaration
+  statements</a></li>
+</ul>
+

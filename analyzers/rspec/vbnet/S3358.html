@@ -1,0 +1,15 @@
+<h2>Why is this an issue?</h2>
+<p>Nested ternaries are hard to read and can make the order of operations complex to understand.</p>
+<pre>
+Public Function GetReadableStatus(job As Job) As String
+    Return If(job.IsRunning, "Running", If(job.HasErrors, "Failed", "Succeeded")) ' Noncompliant
+End Function
+</pre>
+<p>Instead, use another line to express the nested operation in a separate statement.</p>
+<pre>
+Public Function GetReadableStatus(job As Job) As String
+    If job.IsRunning Then Return "Running"
+    Return If(job.HasErrors, "Failed", "Succeeded")
+End Function
+</pre>
+

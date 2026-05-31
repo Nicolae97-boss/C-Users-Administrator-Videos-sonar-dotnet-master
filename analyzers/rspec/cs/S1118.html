@@ -1,0 +1,57 @@
+<h2>Why is this an issue?</h2>
+<p>Whenever there are portions of code that are duplicated and do not depend on the state of their container class, they can be centralized inside a
+"utility class". A utility class is a class that only has static members, hence it should not be instantiated.</p>
+<h2>How to fix it</h2>
+<p>To prevent the class from being instantiated, you should define a non-public constructor. This will prevent the compiler from implicitly generating
+a public parameterless constructor.</p>
+<p>Alternatively, adding the <code>static</code> keyword as class modifier will also prevent it from being instantiated.</p>
+<h3>Code examples</h3>
+<h4>Noncompliant code example</h4>
+<pre data-diff-id="1" data-diff-type="noncompliant">
+public class StringUtils // Noncompliant: implicit public constructor
+{
+  public static string Concatenate(string s1, string s2)
+  {
+    return s1 + s2;
+  }
+}
+</pre>
+<p>or</p>
+<pre data-diff-id="2" data-diff-type="noncompliant">
+public class StringUtils // Noncompliant: explicit public constructor
+{
+  public StringUtils()
+  {
+  }
+
+  public static string Concatenate(string s1, string s2)
+  {
+    return s1 + s2;
+  }
+}
+</pre>
+<h4>Compliant solution</h4>
+<pre data-diff-id="1" data-diff-type="compliant">
+public static class StringUtils // Compliant: the class is static
+{
+  public static string Concatenate(string s1, string s2)
+  {
+    return s1 + s2;
+  }
+}
+</pre>
+<p>or</p>
+<pre data-diff-id="2" data-diff-type="compliant">
+public class StringUtils // Compliant: the constructor is not public
+{
+  private StringUtils()
+  {
+  }
+
+  public static string Concatenate(string s1, string s2)
+  {
+    return s1 + s2;
+  }
+}
+</pre>
+

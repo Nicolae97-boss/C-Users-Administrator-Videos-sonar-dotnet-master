@@ -1,0 +1,23 @@
+{
+  "title": "Variables should not be checked against the values they\u0027re about to be assigned",
+  "type": "CODE_SMELL",
+  "code": {
+    "impacts": {
+      "MAINTAINABILITY": "LOW"
+    },
+    "attribute": "CLEAR"
+  },
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "2min"
+  },
+  "tags": [
+    "confusing"
+  ],
+  "defaultSeverity": "Minor",
+  "ruleSpecification": "RSPEC-3440",
+  "sqKey": "S3440",
+  "scope": "All",
+  "quickfix": "covered"
+}

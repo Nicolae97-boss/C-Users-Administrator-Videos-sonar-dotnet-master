@@ -1,0 +1,49 @@
+﻿/*
+ * SonarAnalyzer for .NET
+ * Copyright (C) SonarSource Sàrl
+ * mailto:info AT sonarsource DOT com
+ *
+ * You can redistribute and/or modify this program under the terms of
+ * the Sonar Source-Available License Version 1, as published by SonarSource Sàrl.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the Sonar Source-Available License for more details.
+ *
+ * You should have received a copy of the Sonar Source-Available License
+ * along with this program; if not, see https://sonarsource.com/license/ssal/
+ */
+
+using NodeSymbolAndModel = SonarAnalyzer.Core.Common.NodeSymbolAndModel<Microsoft.CodeAnalysis.SyntaxNode, Microsoft.CodeAnalysis.ISymbol>;
+
+namespace SonarAnalyzer.VisualBasic.Core.Syntax.Utilities;
+
+public class VisualBasicRemovableDeclarationCollector : RemovableDeclarationCollectorBase<TypeBlockSyntax, TypeStatementSyntax, SyntaxKind>
+{
+    public VisualBasicRemovableDeclarationCollector(INamedTypeSymbol namedType, Compilation compilation) : base(namedType, compilation) { }
+
+    public static bool IsNodeStructOrClassDeclaration(SyntaxNode node) =>
+        node.IsKind(SyntaxKind.ClassBlock) || node.IsKind(SyntaxKind.StructureBlock);
+
+    public static bool IsNodeContainerTypeDeclaration(SyntaxNode node) =>
+        IsNodeStructOrClassDeclaration(node) || node.IsKind(SyntaxKind.InterfaceBlock);
+
+    protected override IEnumerable<SyntaxNode> MatchingDeclarations(NodeAndModel<TypeBlockSyntax> container, ISet<SyntaxKind> kinds) =>
+        container.Node.DescendantNodes(IsNodeContainerTypeDeclaration).Where(node => kinds.Contains(node.Kind()));
+
+    public override IEnumerable<NodeSymbolAndModel> RemovableFieldLikeDeclarations(ISet<SyntaxKind> kinds, Accessibility maxAccessibility)
+    {
+        var fieldLikeNodes = TypeDeclarations
+            .SelectMany(typeDeclaration => MatchingDeclarations(typeDeclaration, kinds)
+                .Select(x => new NodeAndModel<FieldDeclarationSyntax>((FieldDeclarationSyntax)x, typeDeclaration.Model)));
+
+        return fieldLikeNodes
+            .SelectMany(fieldLikeNode => fieldLikeNode.Node.Declarators.SelectMany(x => x.Names)
+                .Select(name => CreateNodeSymbolAndModel(name, fieldLikeNode.Model))
+                .Where(x => IsRemovable(x.Symbol, maxAccessibility)));
+    }
+
+    public override TypeBlockSyntax OwnerOfSubnodes(TypeStatementSyntax node) =>
+        node.Parent as TypeBlockSyntax;
+}

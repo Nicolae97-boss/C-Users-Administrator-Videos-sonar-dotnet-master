@@ -1,0 +1,21 @@
+{
+  "title": "Loops should be simplified with \"LINQ\" expressions",
+  "type": "CODE_SMELL",
+  "code": {
+    "impacts": {
+      "MAINTAINABILITY": "LOW"
+    },
+    "attribute": "CLEAR"
+  },
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "5min"
+  },
+  "tags": [],
+  "defaultSeverity": "Minor",
+  "ruleSpecification": "RSPEC-3267",
+  "sqKey": "S3267",
+  "scope": "Main",
+  "quickfix": "unknown"
+}

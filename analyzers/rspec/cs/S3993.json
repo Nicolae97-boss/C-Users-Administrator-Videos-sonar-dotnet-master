@@ -1,0 +1,23 @@
+{
+  "title": "Custom attributes should be marked with \"System.AttributeUsageAttribute\"",
+  "type": "CODE_SMELL",
+  "code": {
+    "impacts": {
+      "MAINTAINABILITY": "MEDIUM"
+    },
+    "attribute": "CONVENTIONAL"
+  },
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "5min"
+  },
+  "tags": [
+    "api-design"
+  ],
+  "defaultSeverity": "Major",
+  "ruleSpecification": "RSPEC-3993",
+  "sqKey": "S3993",
+  "scope": "All",
+  "quickfix": "unknown"
+}

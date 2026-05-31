@@ -1,0 +1,16 @@
+<h2>Why is this an issue?</h2>
+<p>Since Visual Studio 2010 SP1, the <code>ByVal</code> parameter modifier is implicitly applied, and therefore not required anymore. Removing it from
+your source code will improve readability.</p>
+<h3>Noncompliant code example</h3>
+<pre>
+Sub Foo(ByVal bar As String)
+  ' ...
+End Sub
+</pre>
+<h3>Compliant solution</h3>
+<pre>
+Sub Foo(bar As String)
+  ' ...
+End Sub
+</pre>
+

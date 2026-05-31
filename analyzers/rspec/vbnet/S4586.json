@@ -1,0 +1,23 @@
+{
+  "title": "Non-async \"Task\/Task\u003cT\u003e\" methods should not return null",
+  "type": "BUG",
+  "code": {
+    "impacts": {
+      "RELIABILITY": "HIGH"
+    },
+    "attribute": "LOGICAL"
+  },
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "5 min"
+  },
+  "tags": [
+    "async-await"
+  ],
+  "defaultSeverity": "Critical",
+  "ruleSpecification": "RSPEC-4586",
+  "sqKey": "S4586",
+  "scope": "All",
+  "quickfix": "targeted"
+}

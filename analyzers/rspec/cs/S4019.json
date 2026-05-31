@@ -1,0 +1,23 @@
+{
+  "title": "Base class methods should not be hidden",
+  "type": "CODE_SMELL",
+  "code": {
+    "impacts": {
+      "MAINTAINABILITY": "HIGH"
+    },
+    "attribute": "LOGICAL"
+  },
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "5min"
+  },
+  "tags": [
+    "pitfall"
+  ],
+  "defaultSeverity": "Critical",
+  "ruleSpecification": "RSPEC-4019",
+  "sqKey": "S4019",
+  "scope": "All",
+  "quickfix": "infeasible"
+}

@@ -1,0 +1,24 @@
+{
+  "title": "Return types named \"partial\" should be escaped with \"@\"",
+  "type": "CODE_SMELL",
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "5 min"
+  },
+  "tags": [
+    "breaking-change",
+    "csharp14"
+  ],
+  "defaultSeverity": "Critical",
+  "ruleSpecification": "RSPEC-8380",
+  "sqKey": "S8380",
+  "scope": "All",
+  "quickfix": "unknown",
+  "code": {
+    "impacts": {
+      "MAINTAINABILITY": "HIGH"
+    },
+    "attribute": "CONVENTIONAL"
+  }
+}

@@ -1,0 +1,164 @@
+﻿/*
+ * SonarAnalyzer for .NET
+ * Copyright (C) SonarSource Sàrl
+ * mailto:info AT sonarsource DOT com
+ *
+ * You can redistribute and/or modify this program under the terms of
+ * the Sonar Source-Available License Version 1, as published by SonarSource Sàrl.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the Sonar Source-Available License for more details.
+ *
+ * You should have received a copy of the Sonar Source-Available License
+ * along with this program; if not, see https://sonarsource.com/license/ssal/
+ */
+
+namespace SonarAnalyzer.CSharp.Rules
+{
+    [DiagnosticAnalyzer(LanguageNames.CSharp)]
+    public class CheckArgumentException : SonarDiagnosticAnalyzer
+    {
+        private const string DiagnosticId = "S3928";
+        private const string MessageFormat = "{0}";
+        private const string ParameterLessConstructorMessage = "Use a constructor overloads that allows a more meaningful exception message to be provided.";
+        private const string ConstructorParametersInverted = "ArgumentException constructor arguments have been inverted.";
+        private const string InvalidParameterName = "The parameter name '{0}' is not declared in the argument list.";
+
+        private static readonly DiagnosticDescriptor Rule = DescriptorFactory.Create(DiagnosticId, MessageFormat);
+
+        public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = ImmutableArray.Create(Rule);
+
+        private static readonly ImmutableArray<KnownType> ArgumentExceptionTypesToCheck =
+            ImmutableArray.Create(
+                KnownType.System_ArgumentException,
+                KnownType.System_ArgumentNullException,
+                KnownType.System_ArgumentOutOfRangeException,
+                KnownType.System_DuplicateWaitObjectException);
+
+        protected override void Initialize(SonarAnalysisContext context) =>
+            context.RegisterNodeAction(CheckForIssue, SyntaxKind.ObjectCreationExpression, SyntaxKindEx.ImplicitObjectCreationExpression);
+
+        private static void CheckForIssue(SonarSyntaxNodeReportingContext analysisContext)
+        {
+            var objectCreation = ObjectCreationFactory.Create(analysisContext.Node);
+            var methodSymbol = objectCreation.MethodSymbol(analysisContext.Model);
+            if (methodSymbol?.ContainingType == null || !methodSymbol.ContainingType.IsAny(ArgumentExceptionTypesToCheck))
+            {
+                return;
+            }
+
+            if (objectCreation.ArgumentList == null || objectCreation.ArgumentList.Arguments.Count == 0)
+            {
+                analysisContext.ReportIssue(Rule, objectCreation.Expression, ParameterLessConstructorMessage);
+                return;
+            }
+
+            var parameterAndMessage = RetrieveParameterAndMessageArgumentValue(methodSymbol, objectCreation, analysisContext.Model);
+
+            var constructorParameterArgument = parameterAndMessage.Item1;
+            var constructorMessageArgument = parameterAndMessage.Item2;
+
+            if (!constructorParameterArgument.HasValue)
+            {
+                // can't check non-constant strings OR argument is not set
+                return;
+            }
+
+            var methodArgumentNames = GetMethodArgumentNames(objectCreation.Expression).ToHashSet();
+            if (!methodArgumentNames.Contains(TakeOnlyBeforeDot(constructorParameterArgument)))
+            {
+                var message = constructorMessageArgument.HasValue && methodArgumentNames.Contains(TakeOnlyBeforeDot(constructorMessageArgument))
+                    ? ConstructorParametersInverted
+                    : string.Format(InvalidParameterName, constructorParameterArgument.Value);
+                analysisContext.ReportIssue(Rule, objectCreation.Expression, message);
+            }
+        }
+
+        private static Tuple<Optional<object>, Optional<object>> RetrieveParameterAndMessageArgumentValue(IMethodSymbol methodSymbol, IObjectCreation objectCreation, SemanticModel semanticModel)
+        {
+            var parameterNameValue = default(Optional<object>);
+            var messageValue = default(Optional<object>);
+            for (var i = 0; i < methodSymbol.Parameters.Length; i++)
+            {
+                var argument = objectCreation.ArgumentList.Arguments[i];
+                var argumentExpression = objectCreation.ArgumentList.Arguments[i].Expression;
+                var argumentName = argument.NameColon != null
+                                   ? argument.NameColon.Name.Identifier.ValueText
+                                   : methodSymbol.Parameters[i].MetadataName;
+
+                if (argumentName.Equals("paramName", StringComparison.Ordinal) || argumentName.Equals("parameterName", StringComparison.Ordinal))
+                {
+                    parameterNameValue = semanticModel.GetConstantValue(argumentExpression);
+                }
+                else if (argumentName.Equals("message", StringComparison.Ordinal))
+                {
+                    messageValue = semanticModel.GetConstantValue(argumentExpression);
+                }
+            }
+
+            return new Tuple<Optional<object>, Optional<object>>(parameterNameValue, messageValue);
+        }
+
+        private static IEnumerable<string> GetMethodArgumentNames(SyntaxNode creationSyntax)
+        {
+            var node = creationSyntax.AncestorsAndSelf().FirstOrDefault(ancestor =>
+                ancestor is SimpleLambdaExpressionSyntax
+                    or ParenthesizedLambdaExpressionSyntax
+                    or AccessorDeclarationSyntax
+                    or BaseMethodDeclarationSyntax
+                    or IndexerDeclarationSyntax
+                    or PropertyDeclarationSyntax
+                    or CompilationUnitSyntax
+                || LocalFunctionStatementSyntaxWrapper.IsInstance(ancestor));
+
+            var parameterList = node switch
+            {
+                SimpleLambdaExpressionSyntax simpleLambda => new[] { simpleLambda.Parameter.Identifier.ValueText },
+                BaseMethodDeclarationSyntax method => IdentifierNames(method.ParameterList),
+                ParenthesizedLambdaExpressionSyntax lambda => IdentifierNames(lambda.ParameterList),
+                AccessorDeclarationSyntax accessor => AccessorIdentifierNames(accessor),
+                IndexerDeclarationSyntax indexerDeclaration => IdentifierNames(indexerDeclaration.ParameterList),
+                PropertyDeclarationSyntax propertyDeclaration => ParentParameterList(propertyDeclaration),
+                CompilationUnitSyntax => new[] { "args" },
+                { } when LocalFunctionStatementSyntaxWrapper.IsInstance(node) => IdentifierNames(((LocalFunctionStatementSyntaxWrapper)node).ParameterList),
+                _ => Enumerable.Empty<string>()
+            };
+
+            return parameterList.Union(ParentParameterList(creationSyntax));
+
+            static IEnumerable<string> IdentifierNames(BaseParameterListSyntax parameterList) =>
+                    parameterList.Parameters.Select(x => x.Identifier.ValueText);
+
+            static IEnumerable<string> AccessorIdentifierNames(AccessorDeclarationSyntax accessor)
+            {
+                var arguments = new List<string>();
+                if (accessor.FirstAncestorOrSelf<IndexerDeclarationSyntax>() is { } indexer)
+                {
+                    arguments.AddRange(IdentifierNames(indexer.ParameterList));
+                }
+                if (accessor.Kind() is SyntaxKind.SetAccessorDeclaration or SyntaxKindEx.InitAccessorDeclaration)
+                {
+                    if (accessor.Parent.Parent is PropertyDeclarationSyntax propertyDeclaration)
+                    {
+                        arguments.Add(propertyDeclaration.Identifier.Text);
+                    }
+                    arguments.Add("value");
+                }
+                return arguments;
+            }
+
+            static IEnumerable<string> ParentParameterList(SyntaxNode node) =>
+                node?.Ancestors().OfType<TypeDeclarationSyntax>().FirstOrDefault() is { } typeDeclaration
+                    ? GetIdentifierNames(typeDeclaration.ParameterList())
+                    : Enumerable.Empty<string>();
+
+            static IEnumerable<string> GetIdentifierNames(ParameterListSyntax parameterList) =>
+                parameterList is null ? Enumerable.Empty<string>() : IdentifierNames(parameterList);
+        }
+
+        private static string TakeOnlyBeforeDot(Optional<object> value) =>
+            (value.Value as string)?.Split('.').FirstOrDefault();
+    }
+}

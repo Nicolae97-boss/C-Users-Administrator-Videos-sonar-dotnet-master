@@ -1,0 +1,12 @@
+
+<p>The solution to all problems is: @(RaiseHere())</p> @* Noncompliant *@
+
+@code
+{
+    private int magicNumber = RaiseHere(); // Noncompliant
+//                            ^^^^^^^^^
+    private static int RaiseHere()
+    {
+        return 42;
+    }
+}

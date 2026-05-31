@@ -1,0 +1,24 @@
+{
+  "title": "Literals should not be passed as localized parameters",
+  "type": "CODE_SMELL",
+  "code": {
+    "impacts": {
+      "MAINTAINABILITY": "MEDIUM"
+    },
+    "attribute": "COMPLETE"
+  },
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "10min"
+  },
+  "tags": [
+    "localisation",
+    "pitfall"
+  ],
+  "defaultSeverity": "Major",
+  "ruleSpecification": "RSPEC-4055",
+  "sqKey": "S4055",
+  "scope": "Main",
+  "quickfix": "unknown"
+}

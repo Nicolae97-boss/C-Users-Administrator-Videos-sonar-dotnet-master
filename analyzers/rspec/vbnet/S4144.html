@@ -1,0 +1,35 @@
+<h2>Why is this an issue?</h2>
+<p>Two methods having the same implementation are suspicious. It might be that something else was intended. Or the duplication is intentional, which
+becomes a maintenance burden.</p>
+<pre data-diff-id="1" data-diff-type="noncompliant">
+Private Const CODE As String = "bounteous"
+Private callCount As Integer = 0
+
+Public Function GetCode() As String
+  callCount = callCount + 1
+  Return CODE
+End Function
+
+Public Function GetName() As String ' Noncompliant: duplicates GetCode
+  callCount = callCount + 1
+  Return CODE
+End Function
+</pre>
+<p>If the identical logic is intentional, the code should be refactored to avoid duplication. For example, by having both methods call the same method
+or by having one implementation invoke the other.</p>
+<pre data-diff-id="1" data-diff-type="compliant">
+Private Const CODE As String = "bounteous"
+Private callCount As Integer = 0
+
+Public Function GetCode() As String
+  callCount = callCount + 1
+  Return CODE
+End Function
+
+Public Function GetName() As String ' Intent is clear
+  Return GetCode()
+End Function
+</pre>
+<h3>Exceptions</h3>
+<p>Empty methods, methods with only one line of code and methods with the same name (overload) are ignored.</p>
+

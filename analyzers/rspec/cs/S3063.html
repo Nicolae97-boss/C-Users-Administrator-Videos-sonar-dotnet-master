@@ -1,0 +1,44 @@
+<h2>Why is this an issue?</h2>
+<p><code>StringBuilder</code> instances that never build a <code>string</code> clutter the code and worse are a drag on performance. Either they
+should be removed, or the missing <code>ToString()</code> call should be added.</p>
+<h3>Noncompliant code example</h3>
+<pre>
+public void DoSomething(List&lt;string&gt; strings) {
+  var sb = new StringBuilder();  // Noncompliant
+  sb.Append("Got: ");
+  foreach(var str in strings) {
+    sb.Append(str).Append(", ");
+    // ...
+  }
+}
+</pre>
+<h3>Compliant solution</h3>
+<pre>
+public void DoSomething(List&lt;string&gt; strings) {
+  foreach(var str in strings) {
+    // ...
+  }
+}
+</pre>
+<p>or</p>
+<pre>
+public void DoSomething(List&lt;string&gt; strings) {
+  var sb = new StringBuilder();
+  sb.Append("Got: ");
+  foreach(var str in strings) {
+    sb.Append(str).Append(", ");
+    // ...
+  }
+  logger.LogInformation(sb.ToString());
+}
+</pre>
+<h3>Exceptions</h3>
+<p>No issue is reported when <code>StringBuilder</code> is:</p>
+<ul>
+  <li>Accessed through <code>sb.CopyTo()</code>, <code>sb.GetChunks()</code>, <code>sb.Length</code>, or <code>sb[index]</code>.</li>
+  <li>Passed as a method argument, on the grounds that it will likely be accessed through a <code>ToString()</code> invocation there.</li>
+  <li>Passed in as a parameter to the current method, on the grounds that the callee will materialize the string.</li>
+  <li>Retrieved by a custom function (<code>var sb = GetStringBuilder();</code>).</li>
+  <li>Returned by the method.</li>
+</ul>
+

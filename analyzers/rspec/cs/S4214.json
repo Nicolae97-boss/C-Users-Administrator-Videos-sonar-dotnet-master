@@ -1,0 +1,15 @@
+{
+  "title": "\"P\/Invoke\" methods should not be visible",
+  "type": "CODE_SMELL",
+  "status": "deprecated",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "2min"
+  },
+  "tags": [],
+  "defaultSeverity": "Major",
+  "ruleSpecification": "RSPEC-4214",
+  "sqKey": "S4214",
+  "scope": "Main",
+  "quickfix": "unknown"
+}

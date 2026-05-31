@@ -1,0 +1,36 @@
+<h2>Why is this an issue?</h2>
+<p>Locking on a local variable can undermine synchronization because two different threads running the same method in parallel will potentially lock
+on different instances of the same object, allowing them to access the synchronized block at the same time.</p>
+<h3>Noncompliant code example</h3>
+<pre>
+private void DoSomething()
+{
+  object local = new object();
+  // Code potentially modifying the local variable ...
+
+  lock (local) // Noncompliant
+  {
+    // ...
+  }
+}
+</pre>
+<h3>Compliant solution</h3>
+<pre>
+private readonly object lockObj = new object();
+
+private void DoSomething()
+{
+  lock (lockObj)
+  {
+    //...
+  }
+}
+</pre>
+<h2>Resources</h2>
+<ul>
+  <li><a href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/statements/lock">Lock Statement</a> - lock statement - ensure
+  exclusive access to a shared resource</li>
+  <li>CWE - <a href="https://cwe.mitre.org/data/definitions/412">CWE-412 - Unrestricted Externally Accessible Lock</a></li>
+  <li>CWE - <a href="https://cwe.mitre.org/data/definitions/413">CWE-413 - Improper Resource Locking</a></li>
+</ul>
+

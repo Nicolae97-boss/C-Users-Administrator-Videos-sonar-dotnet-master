@@ -1,0 +1,23 @@
+{
+  "title": "Multiple \"OrderBy\" calls should not be used",
+  "type": "CODE_SMELL",
+  "code": {
+    "impacts": {
+      "MAINTAINABILITY": "MEDIUM"
+    },
+    "attribute": "LOGICAL"
+  },
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "5min"
+  },
+  "tags": [
+    "performance"
+  ],
+  "defaultSeverity": "Major",
+  "ruleSpecification": "RSPEC-3169",
+  "sqKey": "S3169",
+  "scope": "All",
+  "quickfix": "covered"
+}

@@ -1,0 +1,102 @@
+﻿/*
+ * SonarAnalyzer for .NET
+ * Copyright (C) SonarSource Sàrl
+ * mailto:info AT sonarsource DOT com
+ *
+ * You can redistribute and/or modify this program under the terms of
+ * the Sonar Source-Available License Version 1, as published by SonarSource Sàrl.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the Sonar Source-Available License for more details.
+ *
+ * You should have received a copy of the Sonar Source-Available License
+ * along with this program; if not, see https://sonarsource.com/license/ssal/
+ */
+
+using CS = SonarAnalyzer.CSharp.Rules;
+using VB = SonarAnalyzer.VisualBasic.Rules;
+
+namespace SonarAnalyzer.Test.Rules;
+
+[TestClass]
+public class MethodParameterUnusedTest
+{
+    private readonly VerifierBuilder sonarCS = new VerifierBuilder().AddAnalyzer(() => new CS.MethodParameterUnused(AnalyzerConfiguration.AlwaysEnabledWithSonarCfg));
+    private readonly VerifierBuilder roslynCS = new VerifierBuilder<CS.MethodParameterUnused>();   // Default constructor uses Roslyn CFG
+
+    [TestMethod]
+    public void MethodParameterUnused_CS_SonarCfg() =>
+        sonarCS.AddPaths("MethodParameterUnused.SonarCfg.cs").Verify();
+
+    [TestMethod]
+    public void MethodParameterUnused_CS_RoslynCfg() =>
+        roslynCS.AddPaths("MethodParameterUnused.RoslynCfg.cs").Verify();
+
+    [TestMethod]
+    public void MethodParameterUnused_CodeFix_CS() =>
+        roslynCS.AddPaths("MethodParameterUnused.RoslynCfg.cs")
+            .WithCodeFix<CS.MethodParameterUnusedCodeFix>()
+            .WithCodeFixedPaths("MethodParameterUnused.RoslynCfg.Fixed.cs")
+            .VerifyCodeFix();
+
+    [TestMethod]
+    public void MethodParameterUnused_DoubleCompilation_CS()
+    {
+        // https://github.com/SonarSource/sonar-dotnet/issues/5491
+        const string code = """
+            public class Sample
+            {
+                private void Method(int arg) =>
+                    arg.ToString();
+            }
+            """;
+        var compilation1 = roslynCS.AddSnippet(code).WithLanguageVersion(Microsoft.CodeAnalysis.CSharp.LanguageVersion.CSharp7).Compile().Single();
+        var compilation2 = compilation1.WithAssemblyName("Different-Compilation-Reusing-Same-Nodes");
+        // Modified compilation should not reuse cached CFG, because symbols from method would not be equal to symbols from the other CFG.
+        Analyze(compilation1).Should().BeEmpty();
+        Analyze(compilation2).Should().BeEmpty();
+
+        ImmutableArray<Diagnostic> Analyze(Compilation compilation) =>
+            compilation.WithAnalyzers(roslynCS.Analyzers.Select(x => x()).ToImmutableArray()).GetAllDiagnosticsAsync(default).Result;
+    }
+
+    [TestMethod]
+    public void MethodParameterUnused_VB() =>
+        new VerifierBuilder<VB.MethodParameterUnused>().AddPaths("MethodParameterUnused.vb").WithOptions(LanguageOptions.FromVisualBasic14).Verify();
+
+    [TestMethod]
+    public void MethodParameterUnused_CS_RoslynCfg_Latest() =>
+        roslynCS
+            .AddPaths("MethodParameterUnused.Latest.cs")
+            .WithOptions(LanguageOptions.CSharpLatest)
+            .Verify();
+
+    [TestMethod]
+    // https://github.com/SonarSource/sonar-dotnet/issues/8988
+    public void MethodParameterUnused_GeneratedCode_CS() =>
+        roslynCS
+            .AddSnippet("""
+                using System.CodeDom.Compiler;
+
+                [GeneratedCode("TestTool", "Version")]
+                public partial class Generated
+                {
+                    private partial void M(int a, int unused);
+                }
+                """)
+            .AddSnippet("""
+                using System;
+
+                public partial class Generated
+                {
+                    private partial void M(int a, int unused) // Compliant
+                    {
+                        Console.WriteLine(a);
+                    }
+                }
+                """)
+            .WithOptions(LanguageOptions.FromCSharp9)
+            .VerifyNoIssues();
+}

@@ -1,0 +1,43 @@
+﻿/*
+ * SonarAnalyzer for .NET
+ * Copyright (C) SonarSource Sàrl
+ * mailto:info AT sonarsource DOT com
+ *
+ * You can redistribute and/or modify this program under the terms of
+ * the Sonar Source-Available License Version 1, as published by SonarSource Sàrl.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the Sonar Source-Available License for more details.
+ *
+ * You should have received a copy of the Sonar Source-Available License
+ * along with this program; if not, see https://sonarsource.com/license/ssal/
+ */
+
+using SonarAnalyzer.CSharp.Rules;
+
+namespace SonarAnalyzer.Test.Rules
+{
+    [TestClass]
+    public class DoNotWriteToStandardOutputTest
+    {
+        private readonly VerifierBuilder builder = new VerifierBuilder<DoNotWriteToStandardOutput>();
+
+        [TestMethod]
+        public void DoNotWriteToStandardOutput() =>
+            builder.AddPaths("DoNotWriteToStandardOutput.cs").Verify();
+
+        [TestMethod]
+        public void DoNotWriteToStandardOutput_ConditionalDirectives1() =>
+            builder.AddPaths("DoNotWriteToStandardOutput_Conditionals1.cs")
+                .WithConcurrentAnalysis(false)
+                .Verify();
+
+        [TestMethod]
+        public void DoNotWriteToStandardOutput_ConditionalDirectives2() =>
+            builder.AddPaths("DoNotWriteToStandardOutput_Conditionals2.cs")
+                .WithConcurrentAnalysis(false)
+                .Verify();
+    }
+}

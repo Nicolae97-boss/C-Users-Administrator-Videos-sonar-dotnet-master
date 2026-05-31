@@ -1,0 +1,20 @@
+<h2>Why is this an issue?</h2>
+<p>Altering or bypassing the accessibility of classes, methods, or fields through reflection violates the encapsulation principle. This can break the
+internal contracts of the accessed target and lead to maintainability issues and runtime errors.</p>
+<p>This rule raises an issue when reflection is used to change the visibility of a class, method or field, and when it is used to directly update a
+field value.</p>
+<pre>
+using System.Reflection;
+
+Type dynClass = Type.GetType("MyInternalClass");
+// Noncompliant. Using BindingFlags.NonPublic will return non-public members
+BindingFlags bindingAttr = BindingFlags.NonPublic | BindingFlags.Static;
+MethodInfo dynMethod = dynClass.GetMethod("mymethod", bindingAttr);
+object result = dynMethod.Invoke(dynClass, null);
+</pre>
+<h2>Resources</h2>
+<h3>Documentation</h3>
+<ul>
+  <li><a href="https://en.wikipedia.org/wiki/Encapsulation_(computer_programming)">Wikipedia definition of Encapsulation</a></li>
+</ul>
+

@@ -1,0 +1,21 @@
+{
+  "title": "Mutable, non-private fields should not be \"readonly\"",
+  "type": "BUG",
+  "code": {
+    "impacts": {
+      "RELIABILITY": "LOW"
+    },
+    "attribute": "CLEAR"
+  },
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "15min"
+  },
+  "tags": [],
+  "defaultSeverity": "Minor",
+  "ruleSpecification": "RSPEC-3887",
+  "sqKey": "S3887",
+  "scope": "All",
+  "quickfix": "unknown"
+}

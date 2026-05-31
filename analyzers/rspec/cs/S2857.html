@@ -1,0 +1,16 @@
+<h2>Why is this an issue?</h2>
+<p>When concatenating strings, it is very easy to forget a whitespace.</p>
+<p>In some scenarios this might cause runtime errors, one of which is while creating an SQL query via concatenation:</p>
+<pre data-diff-id="1" data-diff-type="noncompliant">
+string select = "SELECT p.FirstName, p.LastName, p.PhoneNumber" +
+        "FROM Person as p" +    // Noncompliant: concatenation results in "p.PhoneNumberFROM"
+        "WHERE p.Id = @Id";     // Noncompliant: concatenation results in "pWHERE"
+</pre>
+<p>This rule raises an issue when the spacing around SQL keywords appears to be missing, making the concatenated string invalid SQL syntax. It would
+require the user to add the appropriate whitespaces:</p>
+<pre data-diff-id="1" data-diff-type="compliant">
+string select = "SELECT p.FirstName, p.LastName, p.PhoneNumber" +
+        " FROM Person as p" +
+        " WHERE p.Id = @Id";
+</pre>
+

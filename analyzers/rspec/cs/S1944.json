@@ -1,0 +1,30 @@
+{
+  "title": "Invalid casts should be avoided",
+  "type": "CODE_SMELL",
+  "code": {
+    "impacts": {
+      "MAINTAINABILITY": "HIGH"
+    },
+    "attribute": "LOGICAL"
+  },
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "20min"
+  },
+  "tags": [
+    "cwe",
+    "suspicious"
+  ],
+  "defaultSeverity": "Critical",
+  "ruleSpecification": "RSPEC-1944",
+  "sqKey": "S1944",
+  "scope": "All",
+  "securityStandards": {
+    "CWE": [
+      588,
+      704
+    ]
+  },
+  "quickfix": "targeted"
+}

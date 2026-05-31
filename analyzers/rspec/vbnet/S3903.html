@@ -1,0 +1,22 @@
+<h2>Why is this an issue?</h2>
+<p>Types are declared in namespaces in order to prevent name collisions and as a way to organize them into the object hierarchy. Types that are
+defined outside any named namespace are in a global namespace that cannot be referenced in code.</p>
+<h3>Noncompliant code example</h3>
+<pre>
+Public Class Foo
+End Class
+
+Public Structure Bar
+End Structure
+</pre>
+<h3>Compliant solution</h3>
+<pre>
+Namespace SomeSpace
+    Public Class Foo
+    End Class
+
+    Public Structure Bar
+    End Structure
+End Namespace
+</pre>
+

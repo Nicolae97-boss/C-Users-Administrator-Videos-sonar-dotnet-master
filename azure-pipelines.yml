@@ -1,0 +1,148 @@
+trigger:
+- master
+
+pool:
+  vmImage: 'windows-latest'
+
+variables:
+  - group: sonar-dotnet-variables
+  - name: UnitTestResultsPath
+    value: '$(Build.SourcesDirectory)\TestResults'
+  - name: CoveragePath
+    value: '$(Build.SourcesDirectory)\coverage'
+  - name: UnitTestExclusionsPattern
+    value: 'analyzers/tests/SonarAnalyzer.Test/TestCases/**/*'
+  - name: CpdExclusionsPattern
+    value: 'analyzers/rspec/**'
+
+resources:
+  repositories:
+    - repository: pipelines-yaml-templates
+      type: git
+      name: pipelines-yaml-templates
+      ref:  refs/tags/v3.0.0
+
+stages:
+- stage: build
+  displayName: 'Build:'
+  jobs:
+  - job: build
+    displayName: 'Build'
+    workspace:
+      clean: all
+
+    steps:
+    - task: CmdLine@2
+      displayName: "NuGet Restore"
+      inputs:
+        targetType: 'inline'
+        script: 'dotnet restore $(solution)'
+
+    - powershell: .\scripts\build\store-azp-variables.ps1
+      displayName: "Store AZP Variables"
+
+    - publish: $(Agent.BuildDirectory)/Azp-Variables
+      artifact: Azp-Variables
+      displayName: "Publish AZP Variables as pipeline artifact"
+
+    - template: set-azp-variables-steps.yml@pipelines-yaml-templates
+
+    - powershell: .\scripts\set-version.ps1 -Version $(SHORT_VERSION) -BuildNumber $(Build.BuildId) -Branch $(Build.SourceBranchName) -Sha1 $(Build.SourceVersion)
+      displayName: "Set Version"
+
+    - task: SonarCloudPrepare@3
+      displayName: '.NET Code Analysis - Begin'
+      inputs:
+        SonarCloud: 'SonarCloud'
+        organization: 'sonarsource'
+        scannerMode: dotnet
+        projectKey: 'sonaranalyzer-dotnet'
+        projectName: 'Sonar .NET Analyzer'
+        projectVersion: '$(SHORT_VERSION)'
+        extraProperties: |
+          sonar.verbose=true
+          sonar.cs.opencover.reportsPaths="$(CoveragePath)/*.xml"
+          sonar.cs.vstest.reportsPaths="$(UnitTestResultsPath)/*.trx"
+          sonar.test.exclusions="$(UnitTestExclusionsPattern)"
+          sonar.cpd.exclusions=$(CpdExclusionsPattern)
+
+    - powershell: |
+        $ProjectNameToken = '$(ProjectName)'  # Workaround for escaping difficulties: Azure DevOps doesn't have ProjectName, so it will not replace it. We need to pass it like that into AltCover via powershell.
+        dotnet build --no-restore analyzers\src\SonarAnalyzer.ShimLayer.Generator\SonarAnalyzer.ShimLayer.Generator.csproj -c $(BuildConfiguration) # Needs a pre-build to prevent file locking issue in SonarAnalyzer.ShimLayer.Generator.Test
+        dotnet test --no-restore $(Solution) -c $(BuildConfiguration) -l trx --results-directory $(UnitTestResultsPath) --filter "FullyQualifiedName!~CreateCfg_Performance_UsesCache" /p:RunAnalyzers=true /p:AltCover=true,AltCoverForce=true,AltCoverVisibleBranches=true,AltCoverAssemblyFilter="testhost|Moq|Humanizer|AltCover|Microsoft|\.Test^",AltCoverPathFilter="SonarAnalyzer\.CFG\\ShimLayer|SonarAnalyzer\.ShimLayer\.CodeGeneration",AltCoverAttributeFilter="ExcludeFromCodeCoverage",AltCoverReport="$(CoveragePath)/coverage.$ProjectNameToken.xml"
+      displayName: '.NET UTs'
+
+    - powershell: |
+        dotnet build analyzers\src\RuleDescriptorGenerator\RuleDescriptorGenerator.csproj -c $(BuildConfiguration) /p:RunAnalyzers=true # This does not have a test project => we need to build it separately
+      displayName: '.NET RuleDescriptor Build'
+
+    - task: PublishTestResults@2
+      condition: always()
+      displayName: 'Publish test results'
+      inputs:
+        testRunner: VSTest
+        testResultsFiles: '*.trx'
+        searchFolder: '$(UnitTestResultsPath)'
+        testRunTitle: '$(Agent.JobName)'
+
+    - script: |
+        nuget pack analyzers/packaging/SonarAnalyzer.CFG.nuspec -Version $(FULL_VERSION) -Properties Configuration=$(BuildConfiguration) -OutputDirectory $(Build.ArtifactStagingDirectory)/packages -Verbosity Detailed
+        nuget pack analyzers/packaging/SonarAnalyzer.CSharp.nuspec -Version $(FULL_VERSION) -Properties Configuration=$(BuildConfiguration) -OutputDirectory $(Build.ArtifactStagingDirectory)/packages -Verbosity Detailed
+        nuget pack analyzers/packaging/SonarAnalyzer.CSharp.Styling.nuspec -Version $(FULL_VERSION) -Properties Configuration=$(BuildConfiguration) -OutputDirectory $(Build.ArtifactStagingDirectory)/packages -Verbosity Detailed
+        nuget pack analyzers/packaging/SonarAnalyzer.VisualBasic.nuspec -Version $(FULL_VERSION) -Properties Configuration=$(BuildConfiguration) -OutputDirectory $(Build.ArtifactStagingDirectory)/packages -Verbosity Detailed
+      displayName: "Build NuGet packages"
+
+    - task: SonarCloudAnalyze@3
+      displayName: '.NET Code Analysis - End'
+
+    - task: SonarCloudPrepare@3
+      displayName: 'Prepare code analysis for Java plugin'
+      inputs:
+        SonarCloud: 'SonarCloud'
+        organization: 'sonarsource'
+        scannerMode: 'Other'
+
+    - task: Maven@4
+      displayName: 'Maven build'
+      inputs:
+        goals: 'verify'
+        options: -B -Pcoverage -Dsonar.projectVersion=$(SHORT_VERSION)
+        publishJUnitResults: true
+        testResultsFiles: '**/surefire-reports/TEST-*.xml'
+        testRunTitle: '$(Agent.JobName)'
+        javaHomeOption: 'JDKVersion'
+        jdkVersionOption: '1.21'
+        # Workaround for plexus-archiver 4.10.2 OOM during JAR packaging.
+        # The archiver sizes its in-memory buffers as threshold/cpuCount.
+        # windows-latest has 2 CPUs, so each buffer is large and causes excessive
+        # heap usage. Forcing 8 effective processors shrinks the buffers and avoids the OOM.
+        mavenOptions: '$(MAVEN_OPTS) -XX:ActiveProcessorCount=8'
+        sonarQubeRunAnalysis: true
+        sqMavenPluginVersionChoice: 'latest'
+
+    - task: CopyFiles@2
+      displayName: "Copy C# Jars to publish directory"
+      inputs:
+        Contents: '*.jar'
+        SourceFolder: 'sonar-csharp-plugin/target'
+        TargetFolder: 'plugin-jars/sonar-csharp-plugin'
+
+    - task: CopyFiles@2
+      displayName: "Copy VB.NET Jars to publish directory"
+      inputs:
+        Contents: '*.jar'
+        SourceFolder: 'sonar-vbnet-plugin/target'
+        TargetFolder: 'plugin-jars/sonar-vbnet-plugin'
+
+    - publish: plugin-jars
+      artifact: plugin-jars
+      displayName: "Publish Jars as build artifacts"
+
+    - publish: '$(Build.ArtifactStagingDirectory)/packages'
+      artifact: 'NuGet Packages'
+      displayName: 'Publish NuGet packages as build artifacts'
+
+    - task: SonarCloudPublish@3
+      displayName: 'Code Analysis - Publish QG'
+      inputs:
+        pollingTimeoutSec: '300'

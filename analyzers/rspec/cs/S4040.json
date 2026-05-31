@@ -1,0 +1,23 @@
+{
+  "title": "Strings should be normalized to uppercase",
+  "type": "CODE_SMELL",
+  "code": {
+    "impacts": {
+      "MAINTAINABILITY": "LOW"
+    },
+    "attribute": "COMPLETE"
+  },
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "2min"
+  },
+  "tags": [
+    "pitfall"
+  ],
+  "defaultSeverity": "Minor",
+  "ruleSpecification": "RSPEC-4040",
+  "sqKey": "S4040",
+  "scope": "All",
+  "quickfix": "unknown"
+}

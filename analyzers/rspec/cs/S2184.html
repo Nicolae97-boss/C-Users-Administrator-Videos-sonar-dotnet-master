@@ -1,0 +1,33 @@
+<h2>Why is this an issue?</h2>
+<p>When division is performed on <code>int</code>s, the result will always be an <code>int</code>. You can assign that result to a
+<code>double</code>, <code>float</code> or <code>decimal</code> with automatic type conversion, but having started as an <code>int</code>, the result
+will likely not be what you expect. If the result of <code>int</code> division is assigned to a floating-point variable, precision will have been lost
+before the assignment. Instead, at least one operand should be cast or promoted to the final type before the operation takes place.</p>
+<h3>Noncompliant code example</h3>
+<pre>
+static void Main()
+{
+  decimal dec = 3/2; // Noncompliant
+  Method(3/2); // Noncompliant
+}
+
+static void Method(float f) { }
+</pre>
+<h3>Compliant solution</h3>
+<pre>
+static void Main()
+{
+  decimal dec = (decimal)3/2;
+  Method(3.0F/2);
+}
+
+static void Method(float f) { }
+</pre>
+<h2>Resources</h2>
+<h3>Standards</h3>
+<ul>
+  <li>CWE - <a href="https://cwe.mitre.org/data/definitions/190">CWE-190 - Integer Overflow or Wraparound</a></li>
+  <li>STIG Viewer - <a href="https://stigviewer.com/stigs/application_security_and_development/2024-12-06/finding/V-222612">Application Security and
+  Development: V-222612</a> - The application must not be vulnerable to overflow attacks.</li>
+</ul>
+

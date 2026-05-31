@@ -1,0 +1,67 @@
+﻿/*
+ * SonarAnalyzer for .NET
+ * Copyright (C) SonarSource Sàrl
+ * mailto:info AT sonarsource DOT com
+ *
+ * You can redistribute and/or modify this program under the terms of
+ * the Sonar Source-Available License Version 1, as published by SonarSource Sàrl.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the Sonar Source-Available License for more details.
+ *
+ * You should have received a copy of the Sonar Source-Available License
+ * along with this program; if not, see https://sonarsource.com/license/ssal/
+ */
+
+using SonarAnalyzer.CSharp.Rules;
+
+namespace SonarAnalyzer.Test.Rules;
+
+[TestClass]
+public class IndentSingleLineFollowingConditionalTest
+{
+    private readonly VerifierBuilder builder = new VerifierBuilder<IndentSingleLineFollowingConditional>();
+
+    public TestContext TestContext { get; set; }
+
+    [TestMethod]
+    public void IndentSingleLineFollowingConditional() =>
+        builder.AddPaths("IndentSingleLineFollowingConditional.cs").Verify();
+
+    [TestMethod]
+    public void IndentSingleLineFollowingConditional_CS_Latest() =>
+        builder.AddPaths("IndentSingleLineFollowingConditional.Latest.cs")
+            .WithTopLevelStatements()
+            .WithOptions(LanguageOptions.CSharpLatest)
+            .Verify();
+
+    [TestMethod]
+    public void IndentSingleLineFollowingConditional_RazorFile_CorrectMessage() =>
+        builder.AddSnippet("""
+            @code
+            {
+                public int Method(int j)
+                {
+                    var total = 0;
+                    for(int i = 0; i < 10; i++) // Noncompliant {{Use curly braces or indentation to denote the code conditionally executed by this 'for'}}
+            //      ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                    total = total + i;               // trivia not included in secondary location for single line statements...
+            //      ^^^^^^^^^^^^^^^^^^ Secondary
+
+                    if (j > 400)
+                        return 4;
+                    else if (j > 500) // Noncompliant {{Use curly braces or indentation to denote the code conditionally executed by this 'else if'}}
+            //      ^^^^^^^^^^^^^^^^^
+                return 5;
+            //  ^^^^^^^^^ Secondary
+
+                    return 1623;
+                }
+            }
+            """,
+            "SomeRazorFile.razor")
+            .WithAdditionalFilePath(AnalysisScaffolding.CreateSonarProjectConfig(TestContext, ProjectType.Product))
+            .Verify();
+}

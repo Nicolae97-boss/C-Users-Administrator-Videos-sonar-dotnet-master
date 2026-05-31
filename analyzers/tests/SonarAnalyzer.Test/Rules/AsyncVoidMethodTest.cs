@@ -1,0 +1,60 @@
+﻿/*
+ * SonarAnalyzer for .NET
+ * Copyright (C) SonarSource Sàrl
+ * mailto:info AT sonarsource DOT com
+ *
+ * You can redistribute and/or modify this program under the terms of
+ * the Sonar Source-Available License Version 1, as published by SonarSource Sàrl.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the Sonar Source-Available License for more details.
+ *
+ * You should have received a copy of the Sonar Source-Available License
+ * along with this program; if not, see https://sonarsource.com/license/ssal/
+ */
+
+using SonarAnalyzer.CSharp.Rules;
+
+using static SonarAnalyzer.TestFramework.MetadataReferences.NugetPackageVersions;
+
+namespace SonarAnalyzer.Test.Rules;
+
+[TestClass]
+public class AsyncVoidMethodTest
+{
+    private readonly VerifierBuilder builder = new VerifierBuilder<AsyncVoidMethod>();
+
+    [TestMethod]
+    public void AsyncVoidMethod() =>
+        builder.AddPaths("AsyncVoidMethod.cs")
+            .Verify();
+
+    [TestMethod]
+    public void AsyncVoidMethod_CS_Latest() =>
+        builder.AddPaths("AsyncVoidMethod.Latest.cs")
+            .WithOptions(LanguageOptions.CSharpLatest)
+            .AddReferences(NuGetMetadataReference.MicrosoftVisualStudioQualityToolsUnitTestFramework)
+            .Verify();
+
+    [TestMethod]
+    [DataRow(MsTest.Ver11)]
+    [DataRow(MsTest.Ver12)]
+    [DataRow(MsTest.Ver311)]
+    [DataRow(Latest)]
+    public void AsyncVoidMethod_MsTestTestFramework(string testFwkVersion) =>
+        builder.AddPaths("AsyncVoidMethod.MsTestTestFramework.cs")
+            .WithOptions(LanguageOptions.CSharpLatest)
+            .AddReferences(NuGetMetadataReference.MSTestTestFramework(testFwkVersion))
+            .WithConcurrentAnalysis(false)
+            .Verify();
+
+    [TestMethod]
+    public void AsyncVoidMethod_VsUtFramework() =>
+        builder.AddPaths("AsyncVoidMethod.VsUtFramework.cs")
+            // MicrosoftVisualStudioQualityToolsUnitTestFramework is not compatible with Net7/C#11 so max is C#10
+            .WithOptions(LanguageOptions.FromCSharp10)
+            .AddReferences(NuGetMetadataReference.MicrosoftVisualStudioQualityToolsUnitTestFramework)
+            .Verify();
+}

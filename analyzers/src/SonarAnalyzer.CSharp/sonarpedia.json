@@ -1,0 +1,10 @@
+{
+  "rules-metadata-path": "../../rspec/cs/",
+  "languages": [
+    "CSH"
+  ],
+  "latest-update": "2026-05-22T15:12:07.622101Z",
+  "options": {
+    "no-language-in-filenames": true
+  }
+}

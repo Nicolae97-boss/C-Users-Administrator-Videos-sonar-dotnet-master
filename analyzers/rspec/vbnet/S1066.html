@@ -1,0 +1,19 @@
+<h2>Why is this an issue?</h2>
+<p>Nested code - blocks of code inside blocks of code - is eventually necessary, but increases complexity. This is why keeping the code as flat as
+possible, by avoiding unnecessary nesting, is considered a good practice.</p>
+<p>Merging <code>if</code> statements when possible will decrease the nesting of the code and improve its readability.</p>
+<p>Code like</p>
+<pre>
+If condition1 Then
+    If condition2 Then ' Noncompliant
+        ' ...
+    End If
+End If
+</pre>
+<p>Will be more readable as</p>
+<pre>
+If condition1 AndAlso condition2 Then
+    ' ...
+End If
+</pre>
+

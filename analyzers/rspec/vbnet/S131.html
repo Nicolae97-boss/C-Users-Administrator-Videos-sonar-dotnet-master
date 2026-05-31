@@ -1,0 +1,28 @@
+<h2>Why is this an issue?</h2>
+<p>The requirement for a final <code>Case Else</code> clause is defensive programming.</p>
+<p>This clause should either take appropriate action or contain a suitable comment as to why no action is taken.</p>
+<h3>Noncompliant code example</h3>
+<pre>
+Select Case param ' Noncompliant - Case Else clause is missing
+  Case 0
+    DoSomething()
+  Case 1
+    DoSomethingElse()
+End Select
+</pre>
+<h3>Compliant solution</h3>
+<pre>
+Select Case param
+  Case 0
+    DoSomething()
+  Case 1
+    DoSomethingElse()
+  Case Else ' Compliant
+    DoSomethingElse()
+End Select
+</pre>
+<h2>Resources</h2>
+<ul>
+  <li>CWE - <a href="https://cwe.mitre.org/data/definitions/478">CWE-478 - Missing Default Case in Switch Statement</a></li>
+</ul>
+

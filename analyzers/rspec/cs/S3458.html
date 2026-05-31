@@ -1,0 +1,35 @@
+<h2>Why is this an issue?</h2>
+<p>Empty <code>case</code> clauses that fall through to the default are useless. Whether or not such a <code>case</code> is present, the
+<code>default</code> clause will be invoked. Such <code>case</code>s simply clutter the code, and should be removed.</p>
+<h3>Noncompliant code example</h3>
+<pre>
+switch(ch)
+{
+  case 'a' :
+    HandleA();
+    break;
+  case 'b' :
+    HandleB();
+    break;
+  case 'c' :  // Noncompliant
+  default:
+    HandleTheRest();
+    break;
+}
+</pre>
+<h3>Compliant solution</h3>
+<pre>
+switch(ch)
+{
+  case 'a' :
+    HandleA();
+    break;
+  case 'b' :
+    HandleB();
+    break;
+  default:
+    HandleTheRest();
+    break;
+}
+</pre>
+

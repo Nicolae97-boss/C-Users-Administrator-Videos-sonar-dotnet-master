@@ -1,0 +1,59 @@
+﻿/*
+ * SonarAnalyzer for .NET
+ * Copyright (C) SonarSource Sàrl
+ * mailto:info AT sonarsource DOT com
+ *
+ * You can redistribute and/or modify this program under the terms of
+ * the Sonar Source-Available License Version 1, as published by SonarSource Sàrl.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the Sonar Source-Available License for more details.
+ *
+ * You should have received a copy of the Sonar Source-Available License
+ * along with this program; if not, see https://sonarsource.com/license/ssal/
+ */
+
+namespace SonarAnalyzer.Core.Rules;
+
+public abstract class ToStringShouldNotReturnNullBase<TSyntaxKind> : SonarDiagnosticAnalyzer<TSyntaxKind>
+        where TSyntaxKind : struct
+{
+    private const string DiagnosticId = "S2225";
+    protected abstract TSyntaxKind MethodKind { get; }
+
+    protected abstract bool IsLocalOrLambda(SyntaxNode node);
+
+    protected abstract IEnumerable<SyntaxNode> Conditionals(SyntaxNode expression);
+
+    protected override string MessageFormat => "Return an empty string instead.";
+
+    protected ToStringShouldNotReturnNullBase() : base(DiagnosticId) { }
+
+    protected override void Initialize(SonarAnalysisContext context) =>
+        context.RegisterNodeAction(
+            Language.GeneratedCodeRecognizer,
+            c => ToStringReturnsNull(c, c.Node),
+            Language.SyntaxKind.ReturnStatement);
+
+    protected void ToStringReturnsNull(SonarSyntaxNodeReportingContext context, SyntaxNode node)
+    {
+        if (node is not null && ReturnsNull(Language.Syntax.NodeExpression(node)) && WithinToString(node))
+        {
+            context.ReportIssue(Rule, node);
+        }
+    }
+
+    private bool ReturnsNull(SyntaxNode node) =>
+        Language.Syntax.IsNullLiteral(node)
+        || Conditionals(node).Select(Language.Syntax.RemoveParentheses).Any(ReturnsNull);
+
+    private bool WithinToString(SyntaxNode node) =>
+        node.Ancestors()
+            .TakeWhile(x => !IsLocalOrLambda(x))
+            .Any(x => Language.Syntax.IsKind(x, MethodKind)
+                        && nameof(ToString).Equals(Language.Syntax.NodeIdentifier(x)?.ValueText, Language.NameComparison)
+                        && x.Parent?.RawKind is not (int)SyntaxKindEx.ExtensionBlockDeclaration
+                        && !Language.Syntax.IsStatic(x));
+}

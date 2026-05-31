@@ -1,0 +1,21 @@
+{
+  "title": "Calls to delegate\u0027s method \"BeginInvoke\" should be paired with calls to \"EndInvoke\"",
+  "type": "BUG",
+  "code": {
+    "impacts": {
+      "RELIABILITY": "HIGH"
+    },
+    "attribute": "COMPLETE"
+  },
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "15min"
+  },
+  "tags": [],
+  "defaultSeverity": "Critical",
+  "ruleSpecification": "RSPEC-4583",
+  "sqKey": "S4583",
+  "scope": "All",
+  "quickfix": "infeasible"
+}

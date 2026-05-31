@@ -1,0 +1,99 @@
+<h2>Why is this an issue?</h2>
+<p>Methods declared as <code>public</code>, <code>protected</code>, or <code>protected internal</code> can be accessed from other assemblies, which
+means you should validate parameters to be within the expected constraints. In general, checking against <code>null</code> is recommended in defensive
+programming.</p>
+<p>This rule raises an issue when a parameter of a publicly accessible method is not validated against <code>null</code> before being
+dereferenced.</p>
+<h3>Noncompliant code example</h3>
+<pre>
+public class MyClass
+{
+    private MyOtherClass other;
+
+    public void Foo(MyOtherClass other)
+    {
+        this.other = other.Clone(); // Noncompliant
+    }
+
+    protected void Bar(MyOtherClass other)
+    {
+        this.other = other.Clone(); // Noncompliant
+    }
+}
+</pre>
+<h3>Compliant solution</h3>
+<pre>
+public class MyClass
+{
+    private MyOtherClass other;
+
+    public void Foo(MyOtherClass other)
+    {
+        if (other != null)
+        {
+            this.other = other.Clone();
+        }
+    }
+
+    protected void Bar(MyOtherClass other)
+    {
+        if (other != null)
+        {
+            this.other = other.Clone();
+        }
+    }
+
+    public void Baz(MyOtherClass other)
+    {
+        ArgumentNullException.ThrowIfNull(other);
+
+        this.other = other.Clone();
+    }
+
+    public void Qux(MyOtherClass other)
+    {
+        this.other = other; // Compliant: "other" is not being dereferenced
+    }
+
+    private void Xyzzy(MyOtherClass other)
+    {
+        this.other = other.Clone(); // Compliant: method is not publicly accessible
+    }
+}
+</pre>
+<h3>Exceptions</h3>
+<ul>
+  <li>Arguments validated for <code>null</code> via helper methods should be annotated with the <a
+  href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/attributes/nullable-analysis#postconditions-maybenull-and-notnull"><code>[NotNull</code></a>] attribute.</li>
+  <li>Method parameters marked with the <code>[NotNull]</code> <a
+  href="https://www.jetbrains.com/help/resharper/Reference__Code_Annotation_Attributes.html#ItemNotNullAttribute">Resharper code annotation
+  attribute</a> are supported as well.</li>
+  <li>To create a custom null validation method declare an attribute with name <code>ValidatedNotNullAttribute</code> and mark the parameter that is
+  validated for null in your method declaration with it:</li>
+</ul>
+<pre>
+using System;
+
+[AttributeUsage(AttributeTargets.Parameter, Inherited=false)]
+public sealed class ValidatedNotNullAttribute : Attribute { }
+
+public static class Guard
+{
+    public static void NotNull&lt;T&gt;([ValidatedNotNullAttribute] T value, [CallerArgumentExpression("value")] string name = "") where T : class
+    {
+        if (value == null)
+            throw new ArgumentNullException(name);
+    }
+}
+
+public static class Utils
+{
+    public static string ToUpper(string value)
+    {
+        Guard.NotNull(value);
+
+        return value.ToUpper(); // Compliant
+    }
+}
+</pre>
+

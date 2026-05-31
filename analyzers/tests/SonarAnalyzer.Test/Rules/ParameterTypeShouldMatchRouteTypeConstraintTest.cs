@@ -1,0 +1,59 @@
+﻿/*
+ * SonarAnalyzer for .NET
+ * Copyright (C) SonarSource Sàrl
+ * mailto:info AT sonarsource DOT com
+ *
+ * You can redistribute and/or modify this program under the terms of
+ * the Sonar Source-Available License Version 1, as published by SonarSource Sàrl.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the Sonar Source-Available License for more details.
+ *
+ * You should have received a copy of the Sonar Source-Available License
+ * along with this program; if not, see https://sonarsource.com/license/ssal/
+ */
+
+using SonarAnalyzer.CSharp.Rules;
+
+namespace SonarAnalyzer.Test.Rules;
+
+[TestClass]
+public class ParameterTypeShouldMatchRouteTypeConstraintTest
+{
+    private readonly VerifierBuilder builder = new VerifierBuilder<ParameterTypeShouldMatchRouteTypeConstraint>();
+
+    public TestContext TestContext { get; set; }
+
+    [TestMethod]
+    public void ParameterTypeShouldMatchRouteTypeConstraint_Blazor() =>
+        builder.AddPaths("ParameterTypeShouldMatchRouteTypeConstraint.razor")
+            .WithAdditionalFilePath(AnalysisScaffolding.CreateSonarProjectConfig(TestContext, ProjectType.Product))
+            .Verify();
+
+    [TestMethod]
+    public void ParameterTypeShouldMatchRouteTypeConstraint_Partial() =>
+        builder.AddPaths("ParameterTypeShouldMatchRouteTypeConstraint.Partial.razor", "ParameterTypeShouldMatchRouteTypeConstraint.Partial.razor.cs")
+            .WithAdditionalFilePath(AnalysisScaffolding.CreateSonarProjectConfig(TestContext, ProjectType.Product))
+            .Verify();
+
+    [TestMethod]
+    public void ParameterTypeShouldMatchRouteTypeConstraint_CS() =>
+        builder.AddPaths("ParameterTypeShouldMatchRouteTypeConstraint.cs")
+            .AddReferences(NuGetMetadataReference.MicrosoftAspNetCoreComponents("7.0.13"))
+            .Verify();
+
+    [TestMethod]
+    public void ParameterTypeShouldMatchRouteTypeConstraint_CS_Latest() =>
+    builder.AddPaths("ParameterTypeShouldMatchRouteTypeConstraint.cs")
+        .AddReferences(NuGetMetadataReference.MicrosoftAspNetCoreComponents("7.0.13"))
+        .WithOptions(LanguageOptions.CSharpLatest)
+        .Verify();
+
+    [TestMethod]
+    public void ParameterTypeShouldMatchRouteTypeConstraint_Conversion() =>
+        builder.AddPaths("ParameterTypeShouldMatchRouteTypeConstraint.Conversion.razor")
+            .WithAdditionalFilePath(AnalysisScaffolding.CreateSonarProjectConfig(TestContext, ProjectType.Product))
+            .Verify();
+}

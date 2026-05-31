@@ -1,0 +1,21 @@
+{
+  "title": "Disposable types should declare finalizers",
+  "type": "CODE_SMELL",
+  "code": {
+    "impacts": {
+      "MAINTAINABILITY": "MEDIUM"
+    },
+    "attribute": "CONVENTIONAL"
+  },
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "10min"
+  },
+  "tags": [],
+  "defaultSeverity": "Major",
+  "ruleSpecification": "RSPEC-4002",
+  "sqKey": "S4002",
+  "scope": "All",
+  "quickfix": "unknown"
+}

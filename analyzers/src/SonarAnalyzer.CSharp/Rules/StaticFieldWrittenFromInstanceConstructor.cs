@@ -1,0 +1,36 @@
+﻿/*
+ * SonarAnalyzer for .NET
+ * Copyright (C) SonarSource Sàrl
+ * mailto:info AT sonarsource DOT com
+ *
+ * You can redistribute and/or modify this program under the terms of
+ * the Sonar Source-Available License Version 1, as published by SonarSource Sàrl.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the Sonar Source-Available License for more details.
+ *
+ * You should have received a copy of the Sonar Source-Available License
+ * along with this program; if not, see https://sonarsource.com/license/ssal/
+ */
+
+namespace SonarAnalyzer.CSharp.Rules
+{
+    [DiagnosticAnalyzer(LanguageNames.CSharp)]
+    public sealed class StaticFieldWrittenFromInstanceConstructor : StaticFieldWrittenFrom
+    {
+        private const string DiagnosticId = "S3010";
+        private const string MessageFormat = "Remove this assignment of '{0}' or initialize it statically.";
+
+        protected override DiagnosticDescriptor Rule =>
+            DescriptorFactory.Create(DiagnosticId, MessageFormat);
+
+        protected override bool IsValidCodeBlockContext(SyntaxNode node, ISymbol owningSymbol) =>
+            node is ConstructorDeclarationSyntax declaration
+            && !declaration.Modifiers.Any(SyntaxKind.StaticKeyword);
+
+        protected override string GetDiagnosticMessageArgument(SyntaxNode node, ISymbol owningSymbol, IFieldSymbol field) =>
+            field.Name;
+    }
+}

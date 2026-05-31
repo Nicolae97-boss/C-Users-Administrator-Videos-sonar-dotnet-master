@@ -1,0 +1,48 @@
+<h2>Why is this an issue?</h2>
+<p>Parameters are part of the <a
+href="https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/methods#method-signatures">method signature</a> and its
+identity.</p>
+<p>Implementing a method from an interface, a base class, or a partial method and changing one of its parameters' names will confuse and impact the
+method’s readability.</p>
+<pre data-diff-id="1" data-diff-type="noncompliant">
+interface IBankAccount
+{
+  void AddMoney(int money);
+}
+
+class BankAccount : IBankAccount
+{
+  void AddMoney(int amount) // Noncompliant: parameter's name differs from base
+  {
+    // ...
+  }
+}
+</pre>
+<p>To avoid any ambiguity in the code, a parameter’s name should match the initial declaration, whether its initial declaration is from an interface,
+a base class, or a partial method.</p>
+<pre data-diff-id="1" data-diff-type="compliant">
+interface IBankAccount
+{
+  void AddMoney(int money);
+}
+
+class BankAccount : IBankAccount
+{
+  void AddMoney(int money) // Compliant: parameter's name match base name
+  {
+    // ...
+  }
+}
+</pre>
+<h3>Exceptions</h3>
+<p>The rule is ignored if both the parameter defined in the initial decalaration is a generic type and the implementing member’s declaration is a
+non-generic type.</p>
+<p>This allows the implementing member to be more specific and provide more information.</p>
+<h2>Resources</h2>
+<h3>Documentation</h3>
+<ul>
+  <li><a href="https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/methods#method-signatures">Method signatures in
+  C#</a></li>
+  <li><a href="https://en.wikipedia.org/wiki/Type_signature#Method_signature">Method signatures - Wiki</a></li>
+</ul>
+

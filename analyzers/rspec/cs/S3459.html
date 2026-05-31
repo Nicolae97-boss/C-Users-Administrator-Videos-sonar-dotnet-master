@@ -1,0 +1,35 @@
+<h2>Why is this an issue?</h2>
+<p>Fields and auto-properties that are never assigned to hold the default values for their types. They are either pointless code or, more likely,
+mistakes.</p>
+<h3>Noncompliant code example</h3>
+<pre>
+class MyClass
+{
+  private int field; // Noncompliant, shouldn't it be initialized? This way the value is always default(int), 0.
+  private int Property { get; set; }  // Noncompliant
+  public void Print()
+  {
+    Console.WriteLine(field); //Will always print 0
+    Console.WriteLine(Property); //Will always print 0
+  }
+}
+</pre>
+<h3>Compliant solution</h3>
+<pre>
+class MyClass
+{
+  private int field = 1;
+  private int Property { get; set; } = 42;
+  public void Print()
+  {
+    field++;
+    Console.WriteLine(field);
+    Console.WriteLine(Property);
+  }
+}
+</pre>
+<h3>Exceptions</h3>
+<ul>
+  <li>Fields on types decorated with <code>System.SerializableAttribute</code> attribute.</li>
+</ul>
+

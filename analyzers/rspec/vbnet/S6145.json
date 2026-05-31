@@ -1,0 +1,23 @@
+{
+  "title": "\"Option Strict\" should be enabled",
+  "type": "CODE_SMELL",
+  "code": {
+    "impacts": {
+      "MAINTAINABILITY": "MEDIUM"
+    },
+    "attribute": "CONVENTIONAL"
+  },
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "20min"
+  },
+  "tags": [
+    "bad-practice"
+  ],
+  "defaultSeverity": "Major",
+  "ruleSpecification": "RSPEC-6145",
+  "sqKey": "S6145",
+  "scope": "All",
+  "quickfix": "unknown"
+}

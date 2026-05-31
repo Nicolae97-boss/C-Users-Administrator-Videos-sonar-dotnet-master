@@ -1,0 +1,65 @@
+﻿/*
+ * SonarAnalyzer for .NET
+ * Copyright (C) SonarSource Sàrl
+ * mailto:info AT sonarsource DOT com
+ *
+ * You can redistribute and/or modify this program under the terms of
+ * the Sonar Source-Available License Version 1, as published by SonarSource Sàrl.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the Sonar Source-Available License for more details.
+ *
+ * You should have received a copy of the Sonar Source-Available License
+ * along with this program; if not, see https://sonarsource.com/license/ssal/
+ */
+
+namespace SonarAnalyzer.CSharp.Rules
+{
+    [DiagnosticAnalyzer(LanguageNames.CSharp)]
+    public sealed class RedundantNullableTypeComparison : SonarDiagnosticAnalyzer
+    {
+        internal const string DiagnosticId = "S3610";
+        private const string MessageFormat = "Remove this redundant type comparison.";
+
+        private static readonly DiagnosticDescriptor rule =
+            DescriptorFactory.Create(DiagnosticId, MessageFormat);
+
+        public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = ImmutableArray.Create(rule);
+
+        protected override void Initialize(SonarAnalysisContext context)
+        {
+            context.RegisterNodeAction(
+                c =>
+                {
+                    var binary = (BinaryExpressionSyntax)c.Node;
+                    CheckGetTypeAndTypeOfEquality(c, binary.Left, binary.Right, binary.GetLocation());
+                    CheckGetTypeAndTypeOfEquality(c, binary.Right, binary.Left, binary.GetLocation());
+                },
+                SyntaxKind.EqualsExpression,
+                SyntaxKind.NotEqualsExpression);
+        }
+
+        private static void CheckGetTypeAndTypeOfEquality(SonarSyntaxNodeReportingContext context, ExpressionSyntax sideA, ExpressionSyntax sideB, Location location)
+        {
+            if (!(sideA as InvocationExpressionSyntax).IsGetTypeCall(context.Model))
+            {
+                return;
+            }
+
+            var typeSyntax = (sideB as TypeOfExpressionSyntax)?.Type;
+            if (typeSyntax == null)
+            {
+                return;
+            }
+
+            var typeSymbol = context.Model.GetTypeInfo(typeSyntax).Type;
+            if (typeSymbol != null &&
+                typeSymbol.OriginalDefinition.Is(KnownType.System_Nullable_T))
+            {
+                context.ReportIssue(rule, location);
+            }
+        }
+    }
+}

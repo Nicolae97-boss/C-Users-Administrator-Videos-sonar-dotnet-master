@@ -1,0 +1,23 @@
+{
+  "title": "Non-flags enums should not be used in bitwise operations",
+  "type": "CODE_SMELL",
+  "code": {
+    "impacts": {
+      "MAINTAINABILITY": "HIGH"
+    },
+    "attribute": "LOGICAL"
+  },
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "2min"
+  },
+  "tags": [
+    "convention"
+  ],
+  "defaultSeverity": "Critical",
+  "ruleSpecification": "RSPEC-3265",
+  "sqKey": "S3265",
+  "scope": "All",
+  "quickfix": "covered"
+}

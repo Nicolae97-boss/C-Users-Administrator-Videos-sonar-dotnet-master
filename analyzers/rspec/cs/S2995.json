@@ -1,0 +1,21 @@
+{
+  "title": "\"Object.ReferenceEquals\" should not be used for value types",
+  "type": "BUG",
+  "code": {
+    "impacts": {
+      "RELIABILITY": "MEDIUM"
+    },
+    "attribute": "LOGICAL"
+  },
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "15min"
+  },
+  "tags": [],
+  "defaultSeverity": "Major",
+  "ruleSpecification": "RSPEC-2995",
+  "sqKey": "S2995",
+  "scope": "All",
+  "quickfix": "infeasible"
+}

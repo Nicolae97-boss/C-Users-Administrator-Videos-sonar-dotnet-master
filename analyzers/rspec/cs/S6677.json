@@ -1,0 +1,23 @@
+{
+  "title": "Message template placeholders should be unique",
+  "type": "BUG",
+  "code": {
+    "impacts": {
+      "RELIABILITY": "MEDIUM"
+    },
+    "attribute": "LOGICAL"
+  },
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "5min"
+  },
+  "tags": [
+    "logging"
+  ],
+  "defaultSeverity": "Major",
+  "ruleSpecification": "RSPEC-6677",
+  "sqKey": "S6677",
+  "scope": "Main",
+  "quickfix": "infeasible"
+}

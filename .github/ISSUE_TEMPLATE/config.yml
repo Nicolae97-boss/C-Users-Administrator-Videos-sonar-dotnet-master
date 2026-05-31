@@ -1,0 +1,15 @@
+blank_issues_enabled: false
+
+contact_links:
+
+  - name: Request support or report a bug using SonarQube Cloud.
+    url: https://community.sonarsource.com/c/sc/9
+    about: Community Forum - SonarQube Cloud.
+
+  - name: Request support or report a bug using SonarQube Server / Community Build.
+    url: https://community.sonarsource.com/c/sq/10
+    about: Community Forum - SonarQube Server / Community Build.
+
+  - name: Request support or report a bug using SonarQube for IDE.
+    url: https://community.sonarsource.com/c/sl/11
+    about: Community Forum - SonarQube for IDE.

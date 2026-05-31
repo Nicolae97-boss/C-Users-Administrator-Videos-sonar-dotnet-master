@@ -1,0 +1,149 @@
+﻿/*
+ * SonarAnalyzer for .NET
+ * Copyright (C) SonarSource Sàrl
+ * mailto:info AT sonarsource DOT com
+ *
+ * You can redistribute and/or modify this program under the terms of
+ * the Sonar Source-Available License Version 1, as published by SonarSource Sàrl.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the Sonar Source-Available License for more details.
+ *
+ * You should have received a copy of the Sonar Source-Available License
+ * along with this program; if not, see https://sonarsource.com/license/ssal/
+ */
+
+using System.Collections.Concurrent;
+using System.IO;
+using Google.Protobuf;
+using SonarAnalyzer.Protobuf;
+
+namespace SonarAnalyzer.Core.Rules;
+
+public readonly record struct UtilityAnalyzerParameters(bool IsAnalyzerEnabled,
+                                                        bool IgnoreHeaderComments,
+                                                        bool AnalyzeGeneratedCode,
+                                                        bool AnalyzeTestProjects,
+                                                        string OutPath,
+                                                        bool IsTestProject,
+                                                        bool IsCloud)
+{
+    public static readonly UtilityAnalyzerParameters Default = new(false, false, false, true, null, false, false);
+}
+
+public abstract class UtilityAnalyzerBase : SonarDiagnosticAnalyzer
+{
+    protected static readonly ISet<string> FileExtensionWhitelist = new HashSet<string> { ".cs", ".csx", ".vb" };
+    private readonly DiagnosticDescriptor rule;
+
+    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(rule);
+
+    protected override bool EnableConcurrentExecution => false;
+
+    protected UtilityAnalyzerBase(string diagnosticId, string title) =>
+        rule = DiagnosticDescriptorFactory.CreateUtility(diagnosticId, title);
+
+    internal static TextRange ToTextRange(FileLinePositionSpan lineSpan) =>
+        new()
+        {
+            StartLine = lineSpan.StartLinePosition.LineNumberToReport(),
+            EndLine = lineSpan.EndLinePosition.LineNumberToReport(),
+            StartOffset = lineSpan.StartLinePosition.Character,
+            EndOffset = lineSpan.EndLinePosition.Character
+        };
+
+    protected virtual UtilityAnalyzerParameters ReadParameters(IAnalysisContext context)
+    {
+        var outPath = context.ProjectConfiguration().OutPath;
+        // For backward compatibility with S4MSB <= 5.0
+        if (outPath is null && context.Options.ProjectOutFolderPath() is { } projectOutFolderAdditionalFile)
+        {
+            outPath = projectOutFolderAdditionalFile.GetText().ToString().TrimEnd();
+        }
+        if (context.Options.SonarLintXml() is not null && !string.IsNullOrEmpty(outPath))
+        {
+            var language = context.Compilation.Language;
+            var sonarLintXml = context.SonarLintXml();
+            return new UtilityAnalyzerParameters(
+                IsAnalyzerEnabled: true,
+                IgnoreHeaderComments: sonarLintXml.IgnoreHeaderComments(language),
+                AnalyzeGeneratedCode: sonarLintXml.AnalyzeGeneratedCode(language),
+                AnalyzeTestProjects: true,
+                OutPath: Path.Combine(outPath, language == LanguageNames.CSharp ? "output-cs" : "output-vbnet"),
+                IsTestProject: context.IsTestProject(),
+                IsCloud: context.ProjectConfiguration().AnalysisConfig.IsCloud);
+        }
+        return UtilityAnalyzerParameters.Default;
+    }
+}
+
+public abstract class UtilityAnalyzerBase<TSyntaxKind, TMessage> : UtilityAnalyzerBase
+    where TSyntaxKind : struct
+    where TMessage : class, IMessage, new()
+{
+    protected abstract ILanguageFacade<TSyntaxKind> Language { get; }
+    protected abstract string FileName { get; }
+    protected abstract TMessage CreateMessage(UtilityAnalyzerParameters parameters, SyntaxTree tree, SemanticModel model);
+
+    protected virtual bool AnalyzeUnchangedFiles => false;
+
+    protected UtilityAnalyzerBase(string diagnosticId, string title) : base(diagnosticId, title) { }
+
+    protected virtual IEnumerable<TMessage> CreateAnalysisMessages(SonarCompilationReportingContext c) =>
+        [];
+
+    protected sealed override void Initialize(SonarAnalysisContext context) =>
+        context.RegisterCompilationStartAction(startContext =>
+            {
+                var parameters = ReadParameters(startContext);
+                if (!parameters.IsAnalyzerEnabled)
+                {
+                    return;
+                }
+                var treeMessages = new ConcurrentStack<TMessage>();
+                startContext.RegisterSemanticModelActionInAllFiles(modelContext =>
+                    {
+                        if (ShouldGenerateMetrics(parameters, modelContext))
+                        {
+                            var message = CreateMessage(parameters, modelContext.Tree, modelContext.Model);
+                            treeMessages.Push(message);
+                        }
+                    });
+                startContext.RegisterCompilationEndAction(endContext =>
+                    {
+                        var allMessages = CreateAnalysisMessages(endContext)
+                            .Concat(treeMessages)
+                            .WhereNotNull()
+                            .ToArray();
+                        Directory.CreateDirectory(parameters.OutPath);
+                        using var stream = File.Create(Path.Combine(parameters.OutPath, FileName));
+                        foreach (var message in allMessages)
+                        {
+                            message.WriteDelimitedTo(stream);
+                        }
+                    });
+            });
+
+    protected virtual bool ShouldGenerateMetrics(UtilityAnalyzerParameters parameters, SyntaxTree tree) =>
+        // The results of Metrics and CopyPasteToken analyzers are not needed for Test projects yet the plugin side expects the protobuf files, so we create empty ones.
+        (parameters.AnalyzeTestProjects || !parameters.IsTestProject)
+        && FileExtensionWhitelist.Contains(Path.GetExtension(tree.FilePath))
+        && ShouldGenerateMetricsByType(parameters, tree);
+
+    protected static string MapFilePath(SyntaxTree tree) =>
+        // If the syntax tree is constructed for a razor generated file, we need to provide the original file path.
+        GeneratedCodeRecognizer.IsRazorGeneratedFile(tree) && tree.GetRoot() is var root && root.ContainsDirectives
+            ? root.GetMappedFilePathFromRoot()
+            : tree.FilePath;
+
+    private bool ShouldGenerateMetrics(UtilityAnalyzerParameters parameters, SonarSemanticModelReportingContext context) =>
+        (AnalyzeUnchangedFiles || !context.IsUnchanged(context.Tree))
+        && ShouldGenerateMetrics(parameters, context.Tree);
+
+    private bool ShouldGenerateMetricsByType(UtilityAnalyzerParameters parameters, SyntaxTree tree) =>
+        parameters.AnalyzeGeneratedCode
+            ? !GeneratedCodeRecognizer.IsCshtml(tree) // We cannot upload metrics for .cshtml files. The file is owned by the html plugin.
+            : !tree.IsGenerated(Language.GeneratedCodeRecognizer) || GeneratedCodeRecognizer.IsRazor(tree);
+}

@@ -1,0 +1,10 @@
+<h2>Why is this an issue?</h2>
+<p>The repetition of a prefix operator (<code>!</code>, or <code>~</code>) is usually a typo. The second operator invalidates the first one.</p>
+<pre>
+int v1 = 0;
+bool v2 = false;
+
+var v3 = !!v1; // Noncompliant: equivalent to "v1"
+var v4 = ~~v2; // Noncompliant: equivalent to "v2"
+</pre>
+

@@ -1,0 +1,21 @@
+{
+  "title": "Methods should be named according to their synchronicities",
+  "type": "CODE_SMELL",
+  "code": {
+    "impacts": {
+      "MAINTAINABILITY": "LOW"
+    },
+    "attribute": "IDENTIFIABLE"
+  },
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "5min"
+  },
+  "tags": [],
+  "defaultSeverity": "Minor",
+  "ruleSpecification": "RSPEC-4261",
+  "sqKey": "S4261",
+  "scope": "All",
+  "quickfix": "unknown"
+}

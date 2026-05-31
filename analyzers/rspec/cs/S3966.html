@@ -1,0 +1,46 @@
+<h2>Why is this an issue?</h2>
+<p>Disposing an object twice in the same method, either with the <a
+href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/statements/using">using</a> keyword or by calling <code>Dispose</code>
+directly, is confusing and error-prone. For example, another developer might try to use an already-disposed object, or there can be runtime errors for
+specific paths in the code.</p>
+<p>In addition, even if the <a
+href="https://learn.microsoft.com/en-us/dotnet/api/system.idisposable.dispose#System_IDisposable_Dispose">documentation</a> explicitly states that
+calling the <code>Dispose</code> method multiple times should not throw an exception, some implementations still do it. Thus it is safer to not
+dispose of an object twice when possible.</p>
+<h2>How to fix it</h2>
+<h3>Code examples</h3>
+<h4>Noncompliant code example</h4>
+<pre data-diff-id="1" data-diff-type="noncompliant">
+var foo = new Disposable();
+foo.Dispose();
+foo.Dispose(); // Noncompliant
+</pre>
+<pre data-diff-id="2" data-diff-type="noncompliant">
+using (var bar = new Disposable()) // Noncompliant
+{
+    bar.Dispose();
+}
+</pre>
+<h4>Compliant solution</h4>
+<pre data-diff-id="1" data-diff-type="compliant">
+var foo = new Disposable();
+foo.Dispose();
+</pre>
+<pre data-diff-id="2" data-diff-type="compliant">
+using (var bar = new Disposable()) // Compliant
+{
+
+}
+</pre>
+<h2>Resources</h2>
+<h3>Documentation</h3>
+<ul>
+  <li><a href="https://learn.microsoft.com/en-us/dotnet/api/system.idisposable.dispose?redirectedfrom=MSDN#System_IDisposable_Dispose">Dispose
+  method</a></li>
+  <li><a href="https://learn.microsoft.com/en-us/dotnet/api/system.iasyncdisposable.disposeasync">DisposeAsync method</a></li>
+  <li><a href="https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/implementing-dispose">Implement a Dispose method</a></li>
+  <li><a href="https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/implementing-disposeasync">Implement a DisposeAsync
+  method</a></li>
+  <li><a href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/statements/using">Using statement</a></li>
+</ul>
+

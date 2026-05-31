@@ -1,0 +1,165 @@
+/*
+ * SonarSource :: .NET :: Core
+ * Copyright (C) SonarSource Sàrl
+ * mailto:info AT sonarsource DOT com
+ *
+ * You can redistribute and/or modify this program under the terms of
+ * the Sonar Source-Available License Version 1, as published by SonarSource Sàrl.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the Sonar Source-Available License for more details.
+ *
+ * You should have received a copy of the Sonar Source-Available License
+ * along with this program; if not, see https://sonarsource.com/license/ssal/
+ */
+package org.sonar.plugins.dotnet.tests.coverage;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+public class Coverage {
+
+  private static final int MINIMUM_FILE_LINES = 100;
+  private static final int GROW_FACTOR = 2;
+  private static final int SPECIAL_HITS_NON_EXECUTABLE = -1;
+  private final Map<String, int[]> hitsByLineAndFile = new HashMap<>();
+  private final List<ConditionData> conditionData = new ArrayList<>();
+  private boolean branchCoverageUnderreported = false;
+
+  void addHits(String file, int line, int hits) {
+    int[] oldHitsByLine = hitsByLineAndFile.get(file);
+
+    if (oldHitsByLine == null) {
+      oldHitsByLine = new int[Math.max(line, MINIMUM_FILE_LINES)];
+      for (int i = 0; i < oldHitsByLine.length; i++) {
+        oldHitsByLine[i] = SPECIAL_HITS_NON_EXECUTABLE;
+      }
+      hitsByLineAndFile.put(file, oldHitsByLine);
+    } else if (oldHitsByLine.length < line) {
+      int[] tmp = new int[line * GROW_FACTOR];
+      System.arraycopy(oldHitsByLine, 0, tmp, 0, oldHitsByLine.length);
+      for (int i = oldHitsByLine.length; i < tmp.length; i++) {
+        tmp[i] = SPECIAL_HITS_NON_EXECUTABLE;
+      }
+      oldHitsByLine = tmp;
+      hitsByLineAndFile.put(file, oldHitsByLine);
+    }
+
+    int i = line - 1;
+    if (oldHitsByLine[i] == SPECIAL_HITS_NON_EXECUTABLE) {
+      oldHitsByLine[i] = 0;
+    }
+    oldHitsByLine[i] += hits;
+  }
+
+  public void add(ConditionData condition){
+    conditionData.add(condition);
+  }
+
+  List<ConditionData> getConditionData() {
+    return Collections.unmodifiableList(conditionData);
+  }
+
+  public Set<String> files() {
+    return hitsByLineAndFile.keySet();
+  }
+
+  Map<Integer, Integer> hits(String file) {
+    int[] oldHitsByLine = hitsByLineAndFile.get(file);
+    if (oldHitsByLine == null) {
+      return Collections.emptyMap();
+    }
+
+    Map<Integer, Integer> result = new HashMap<>();
+    for (int i = 0; i < oldHitsByLine.length; i++) {
+      if (oldHitsByLine[i] != SPECIAL_HITS_NON_EXECUTABLE) {
+        result.put(i + 1, oldHitsByLine[i]);
+      }
+    }
+
+    return result;
+  }
+
+  List<BranchCoverage> getBranchCoverage(String file) {
+    return conditionData.stream()
+      .filter(point -> point.getFilePath().equals(file))
+      .collect(Collectors.groupingBy(ConditionData::getStartLine)).entrySet().stream()
+      .map(x -> getBranchCoverage(x.getKey(), x.getValue()))
+      .filter(x -> x.getConditions() > 1)
+      .toList();
+  }
+
+  void mergeWith(Coverage otherCoverage) {
+    mergeLineHits(otherCoverage);
+    conditionData.addAll(otherCoverage.conditionData);
+  }
+
+  private void mergeLineHits(Coverage otherCoverage){
+    Map<String, int[]> other = otherCoverage.hitsByLineAndFile;
+
+    for (Map.Entry<String, int[]> entry : other.entrySet()) {
+      String file = entry.getKey();
+      int[] otherHitsByLine = entry.getValue();
+
+      for (int i = otherHitsByLine.length - 1; i >= 0; i--) {
+        addHits(file, i + 1, otherHitsByLine[i]);
+      }
+    }
+  }
+
+  boolean getBranchCoverageUnderreported() {
+    return branchCoverageUnderreported;
+  }
+
+  private BranchCoverage getBranchCoverage(int lineNumber, List<ConditionData> conditions) {
+    // Mapping ConditionData from different coverage reports is fragile due to potential differences in compilation.
+    // Therefore, we use a forgiving approach: First, count the number of conditions per report and take the maximum. Then, map
+    // conditions and count the ones that are covered. If the mapping did not go well, we might find too many covered conditions.
+    // In this case, we cap the amount to the previously calculated maximum and assume all branches are covered.
+    // In case of multiple formats, we take the maximum of the per-format merges.
+    List<ConditionCoverageResult> coverages = conditions.stream()
+      .collect(Collectors.groupingBy(ConditionData::getFormat)).values().stream()
+      .map(Coverage::calculateCoverage)
+      .toList();
+
+    if (coverages.stream().anyMatch(ConditionCoverageResult::underreported)) {
+      branchCoverageUnderreported = true;
+    }
+
+    int maxConditions = coverages.stream().mapToInt(ConditionCoverageResult::totalBranches).max().orElse(0);
+    int coveredConditions = coverages.stream().mapToInt(ConditionCoverageResult::coveredBranches).max().orElse(0);
+
+    return new BranchCoverage(lineNumber, maxConditions, Math.min(coveredConditions, maxConditions));
+  }
+
+  private static ConditionCoverageResult calculateCoverage(List<ConditionData> conditions) {
+    int maxConditions = conditions.stream()
+      .collect(Collectors.groupingBy(ConditionData::getCoverageIdentifier)).values().stream()
+      .map(x -> (int)x.stream().map(ConditionData::getUniqueKey).distinct().count())
+      .max(Comparator.comparingInt(x -> x)).orElse(0);
+
+    int coveredConditions = (int) conditions.stream()
+      .filter(x -> x.getHits() > 0)
+      .map(ConditionData::getUniqueKey).distinct().count();
+
+    // telemetry
+    int sumCoveredPerReport = conditions.stream()
+      .collect(Collectors.groupingBy(ConditionData::getCoverageIdentifier)).values().stream()
+      .mapToInt(group -> (int)group.stream()
+        .filter(x -> x.getHits() > 0)
+        .map(ConditionData::getUniqueKey).distinct().count())
+      .sum();
+
+    return new ConditionCoverageResult(maxConditions, Math.min(coveredConditions, maxConditions), sumCoveredPerReport > coveredConditions);
+  }
+
+  private record ConditionCoverageResult(int totalBranches, int coveredBranches, boolean underreported) {}
+}

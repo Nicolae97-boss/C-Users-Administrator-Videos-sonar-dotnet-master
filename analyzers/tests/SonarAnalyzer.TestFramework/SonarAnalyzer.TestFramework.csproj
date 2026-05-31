@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Memory.Test still targets net9.0 because JetBrains.dotMemoryUnit hangs on net10.0. Therefore TestFramework needs to target net9.0 and net10.0. -->
+    <TargetFrameworks>net48;net9.0;net10.0</TargetFrameworks>
+    <SonarQubeTestProject>false</SonarQubeTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentAssertions" Version="7.2.1" />
+    <PackageReference Include="FluentAssertions.Analyzers" Version="0.34.1">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Build.Locator" Version="1.11.2" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="5.3.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="5.3.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.VisualBasic.Workspaces" Version="5.3.0" />
+    <PackageReference Include="NSubstitute" Version="5.3.0" />
+    <PackageReference Include="NuGet.Protocol" Version="7.3.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\SonarAnalyzer.Core\SonarAnalyzer.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="FluentAssertions" />
+    <Using Include="Microsoft.CodeAnalysis" />
+    <Using Include="Microsoft.CodeAnalysis.Diagnostics" />
+    <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
+    <Using Include="Combinatorial.MSTest" />
+    <Using Include="SonarAnalyzer.Core.Analyzers" />
+    <Using Include="SonarAnalyzer.Core.Common" />
+    <Using Include="SonarAnalyzer.Core.Extensions" />
+    <Using Include="SonarAnalyzer.TestFramework.Common" />
+    <Using Include="SonarAnalyzer.TestFramework.Extensions" />
+    <Using Include="SonarAnalyzer.TestFramework.MetadataReferences" />
+    <Using Include="System.Diagnostics.CodeAnalysis" />
+    <Using Include="System.IO" />
+  </ItemGroup>
+
+</Project>

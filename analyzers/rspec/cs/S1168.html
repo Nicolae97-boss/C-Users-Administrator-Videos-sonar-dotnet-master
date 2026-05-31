@@ -1,0 +1,61 @@
+<h2>Why is this an issue?</h2>
+<p>Returning <code>null</code> or <code>default</code> instead of an actual collection forces the method callers to explicitly test for null, making
+the code more complex and less readable.</p>
+<p>Moreover, in many cases, <code>null</code> or <code>default</code> is used as a synonym for empty.</p>
+<h3>Noncompliant code example</h3>
+<pre>
+public Result[] GetResults()
+{
+    return null; // Noncompliant
+}
+
+public IEnumerable&lt;Result&gt; GetResults(bool condition)
+{
+    var results = GenerateResults();
+    return condition
+        ? results
+        : null; // Noncompliant
+}
+
+public IEnumerable&lt;Result&gt; GetResults() =&gt; null; // Noncompliant
+
+public IEnumerable&lt;Result&gt; Results
+{
+    get
+    {
+        return default(IEnumerable&lt;Result&gt;); // Noncompliant
+    }
+}
+
+public IEnumerable&lt;Result&gt; Results =&gt; default; // Noncompliant
+</pre>
+<h3>Compliant solution</h3>
+<pre>
+public Result[] GetResults()
+{
+    return new Result[0];
+}
+
+public IEnumerable&lt;Result&gt; GetResults(bool condition)
+{
+    var results = GenerateResults();
+    return condition
+        ? results
+        : Enumerable.Empty&lt;Result&gt;();
+}
+
+public IEnumerable&lt;Result&gt; GetResults() =&gt; Enumerable.Empty&lt;Result&gt;();
+
+public IEnumerable&lt;Result&gt; Results
+{
+    get
+    {
+        return Enumerable.Empty&lt;Result&gt;();
+    }
+}
+
+public IEnumerable&lt;Result&gt; Results =&gt; Enumerable.Empty&lt;Result&gt;();
+</pre>
+<h3>Exceptions</h3>
+<p>Although <code>string</code> is a collection, the rule won’t report on it.</p>
+

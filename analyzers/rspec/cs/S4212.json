@@ -1,0 +1,31 @@
+{
+  "title": "Serialization constructors should be secured",
+  "type": "VULNERABILITY",
+  "code": {
+    "impacts": {
+      "SECURITY": "MEDIUM"
+    },
+    "attribute": "COMPLETE"
+  },
+  "status": "deprecated",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "5min"
+  },
+  "tags": [
+    "serialization"
+  ],
+  "defaultSeverity": "Major",
+  "ruleSpecification": "RSPEC-4212",
+  "sqKey": "S4212",
+  "scope": "Main",
+  "securityStandards": {
+    "OWASP": [
+      "A8"
+    ],
+    "OWASP Top 10 2021": [
+      "A8"
+    ]
+  },
+  "quickfix": "unknown"
+}

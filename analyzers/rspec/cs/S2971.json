@@ -1,0 +1,23 @@
+{
+  "type": "CODE_SMELL",
+  "code": {
+    "impacts": {
+      "MAINTAINABILITY": "MEDIUM"
+    },
+    "attribute": "FOCUSED"
+  },
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "5min"
+  },
+  "tags": [
+    "clumsy"
+  ],
+  "defaultSeverity": "Major",
+  "ruleSpecification": "RSPEC-2971",
+  "sqKey": "S2971",
+  "scope": "All",
+  "quickfix": "unknown",
+  "title": "LINQ expressions should be simplified"
+}

@@ -1,0 +1,60 @@
+﻿/*
+ * SonarAnalyzer for .NET
+ * Copyright (C) SonarSource Sàrl
+ * mailto:info AT sonarsource DOT com
+ *
+ * You can redistribute and/or modify this program under the terms of
+ * the Sonar Source-Available License Version 1, as published by SonarSource Sàrl.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the Sonar Source-Available License for more details.
+ *
+ * You should have received a copy of the Sonar Source-Available License
+ * along with this program; if not, see https://sonarsource.com/license/ssal/
+ */
+
+using SonarAnalyzer.CSharp.Rules;
+
+namespace SonarAnalyzer.Test.Rules
+{
+    [TestClass]
+    public class RedundantInheritanceListTest
+    {
+        private readonly VerifierBuilder rule = new VerifierBuilder<RedundantInheritanceList>();
+        private readonly VerifierBuilder codeFix = new VerifierBuilder<RedundantInheritanceList>().WithCodeFix<RedundantInheritanceListCodeFix>();
+
+        [TestMethod]
+        public void RedundantInheritanceList() =>
+            rule.AddPaths("RedundantInheritanceList.cs").Verify();
+
+        [TestMethod]
+        public void RedundantInheritanceList_CSharp9() =>
+            rule.AddPaths("RedundantInheritanceList.CSharp9.cs").WithOptions(LanguageOptions.FromCSharp9).Verify();
+
+        [TestMethod]
+        public void RedundantInheritanceList_CSharp9_CodeFix() =>
+            codeFix.AddPaths("RedundantInheritanceList.CSharp9.cs")
+                .WithCodeFixedPaths("RedundantInheritanceList.CSharp9.Fixed.cs")
+                .WithOptions(LanguageOptions.FromCSharp9)
+                .VerifyCodeFix();
+
+        [TestMethod]
+        public void RedundantInheritanceList_CSharp10() =>
+            rule.AddPaths("RedundantInheritanceList.CSharp10.cs").WithOptions(LanguageOptions.FromCSharp10).Verify();
+
+        [TestMethod]
+        public void RedundantInheritanceList_CSharp10_CodeFix() =>
+            codeFix.AddPaths("RedundantInheritanceList.CSharp10.cs")
+                .WithCodeFixedPaths("RedundantInheritanceList.CSharp10.Fixed.cs")
+                .WithOptions(LanguageOptions.FromCSharp10)
+                .VerifyCodeFix();
+
+        [TestMethod]
+        public void RedundantInheritanceList_CodeFix() =>
+            codeFix.AddPaths("RedundantInheritanceList.cs")
+                .WithCodeFixedPaths("RedundantInheritanceList.Fixed.cs")
+                .VerifyCodeFix();
+    }
+}

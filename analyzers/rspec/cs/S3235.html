@@ -1,0 +1,33 @@
+<h2>Why is this an issue?</h2>
+<p>Redundant parentheses are simply wasted keystrokes, and should be removed.</p>
+<h3>Noncompliant code example</h3>
+<pre>
+[MyAttribute()] //Noncompliant
+class MyClass
+{
+  public int MyProperty { get; set; }
+  public static MyClass CreateNew(int propertyValue)
+  {
+    return new MyClass() //Noncompliant
+    {
+      MyProperty = propertyValue
+    };
+  }
+}
+</pre>
+<h3>Compliant solution</h3>
+<pre>
+[MyAttribute]
+class MyClass
+{
+  public int MyProperty { get; set; }
+  public static MyClass CreateNew(int propertyValue)
+  {
+    return new MyClass
+    {
+      MyProperty = propertyValue
+    };
+  }
+}
+</pre>
+

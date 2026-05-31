@@ -1,0 +1,56 @@
+﻿/*
+ * SonarAnalyzer for .NET
+ * Copyright (C) SonarSource Sàrl
+ * mailto:info AT sonarsource DOT com
+ *
+ * You can redistribute and/or modify this program under the terms of
+ * the Sonar Source-Available License Version 1, as published by SonarSource Sàrl.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the Sonar Source-Available License for more details.
+ *
+ * You should have received a copy of the Sonar Source-Available License
+ * along with this program; if not, see https://sonarsource.com/license/ssal/
+ */
+
+namespace SonarAnalyzer.CSharp.Rules
+{
+    [DiagnosticAnalyzer(LanguageNames.CSharp)]
+    public sealed class ExpectedExceptionAttributeShouldNotBeUsed : ExpectedExceptionAttributeShouldNotBeUsedBase<SyntaxKind>
+    {
+        protected override ILanguageFacade<SyntaxKind> Language => CSharpFacade.Instance;
+
+        protected override SyntaxNode FindExpectedExceptionAttribute(SyntaxNode node) =>
+            ((MethodDeclarationSyntax)node).AttributeLists.SelectMany(x => x.Attributes).FirstOrDefault(x => x.GetName() is "ExpectedException" or "ExpectedExceptionAttribute");
+
+        protected override bool HasMultiLineBody(SyntaxNode node)
+        {
+            var declaration = (MethodDeclarationSyntax)node;
+            return declaration.ExpressionBody is null
+                && declaration.Body?.Statements.Count > 1;
+        }
+
+        protected override bool AssertInCatchFinallyBlock(SyntaxNode node)
+        {
+            var walker = new CatchFinallyAssertion();
+            foreach (var x in node.DescendantNodes().Where(x => x.Kind() is SyntaxKind.CatchClause or SyntaxKind.FinallyClause))
+            {
+                if (!walker.HasAssertion)
+                {
+                    walker.SafeVisit(x);
+                }
+            }
+            return walker.HasAssertion;
+        }
+
+        private sealed class CatchFinallyAssertion : SafeCSharpSyntaxWalker
+        {
+            public bool HasAssertion { get; set; }
+
+            public override void VisitInvocationExpression(InvocationExpressionSyntax node) =>
+                HasAssertion = HasAssertion || node.Expression.ToString().SplitCamelCaseToWords().Intersect(KnownMethods.AssertionMethodParts).Any();
+        }
+    }
+}

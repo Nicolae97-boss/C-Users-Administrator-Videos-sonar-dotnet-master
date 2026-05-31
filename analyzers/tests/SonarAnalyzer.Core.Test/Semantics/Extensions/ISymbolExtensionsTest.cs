@@ -1,0 +1,505 @@
+﻿/*
+ * SonarAnalyzer for .NET
+ * Copyright (C) SonarSource Sàrl
+ * mailto:info AT sonarsource DOT com
+ *
+ * You can redistribute and/or modify this program under the terms of
+ * the Sonar Source-Available License Version 1, as published by SonarSource Sàrl.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the Sonar Source-Available License for more details.
+ *
+ * You should have received a copy of the Sonar Source-Available License
+ * along with this program; if not, see https://sonarsource.com/license/ssal/
+ */
+
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using ISymbolExtensionsCommon = SonarAnalyzer.Core.Semantics.Extensions.ISymbolExtensions;
+
+namespace SonarAnalyzer.Core.Test.Semantics.Extensions;
+
+[TestClass]
+public class ISymbolExtensionsTest
+{
+    private const string TestInput = """
+        public interface IInterface
+        {
+            int Property2 { get; set; }
+            void Method3();
+        }
+
+        public interface IOtherInterface
+        {
+            void Method3();
+        }
+
+        public abstract class Base
+        {
+            public virtual void Method1() { }
+            protected virtual void Method2() { }
+            public abstract int Property { get; set; }
+
+            public void Method4(){}
+        }
+
+        public class Derived1 : Base
+        {
+            public override int Property { get; set; }
+            private int PrivateProperty { get; set; }
+            private protected int PrivateProtectedProperty { get; set; }
+            protected int ProtectedProperty { get; set; }
+            protected internal int ProtectedInternalProperty { get; set; }
+            internal int InternalProperty { get; set; }
+        }
+
+        public abstract class Derived2 : Base, IInterface
+        {
+            public override int Property { get; set; }
+            public int Property2 { get; set; }
+            public virtual void Method3(){}
+
+            public abstract void Method5();
+        }
+
+        public class Derived3: Derived2, IInterface, IOtherInterface
+        {
+            public override void Method3(){}
+            public override void Method5() {}
+        }
+
+        public class TwoInterfaces: IInterface, IOtherInterface
+        {
+            public int Property2 { get; set; }
+            public void Method3(){}
+        }
+        """;
+
+    private SnippetCompiler testSnippet;
+
+    [TestInitialize]
+    public void Compile() =>
+        testSnippet = new SnippetCompiler(TestInput);
+
+    [TestMethod]
+    public void IsInType_Null_KnownType() =>
+        ISymbolExtensionsCommon.IsInType(null, KnownType.System_Boolean).Should().BeFalse();
+
+    [TestMethod]
+    public void IsInType_Null_TypeSymbol() =>
+        ISymbolExtensionsCommon.IsInType(null, (ITypeSymbol)null).Should().BeFalse();
+
+    [TestMethod]
+    public void IsInType_Null_ArrayOfTypeSymbols() =>
+        ISymbolExtensionsCommon.IsInType(null, []).Should().BeFalse();
+
+    [TestMethod]
+    [DataRow("{ get; set; }")]
+    [DataRow("{ get; }")]
+    [DataRow("{ get; } = string.Empty;")]
+    [DataRow("{ get; set; } = string.Empty;")]
+#if NET
+    [DataRow("{ get; init; }")]
+#endif
+    public void IsAutoProperty_AutoProperty_CS(string getterSetter)
+    {
+        var code = $$"""
+            public class Sample
+            {
+                public string SymbolMember {{getterSetter}}
+            }
+            """;
+        CreateSymbol(code, AnalyzerLanguage.CSharp).IsAutoProperty().Should().BeTrue();
+    }
+
+    [TestMethod]
+    public void IsAutoProperty_AutoProperty_VB()
+    {
+        const string code = """
+            Public Class Sample
+
+                Public Property SymbolMember As String
+
+            End Class
+            """;
+        CreateSymbol(code, AnalyzerLanguage.VisualBasic).IsAutoProperty().Should().BeTrue();
+    }
+
+    [TestMethod]
+    public void IsAutoProperty_ExplicitProperty_CS()
+    {
+        const string code = """
+            public class Sample
+            {
+                private string _SymbolMember; // Try to confuse the method with auto-like implementation
+
+                public string SymbolMember
+                {
+                    get => _SymbolMember;
+                    set { _SymbolMember = value; }
+                }
+            }
+            """;
+        CreateSymbol(code, AnalyzerLanguage.CSharp).IsAutoProperty().Should().BeFalse();
+    }
+
+    [TestMethod]
+    public void IsAutoProperty_ExplicitProperty_VB()
+    {
+        const string code = """
+            Public Class Sample
+
+                Private _SymbolMember As String ' Try to confuse the method with auto-like implementation
+
+                Public Property SymbolMember As String
+                    Get
+                        Return _SymbolMember
+                    End Get
+                    Set(value As String)
+                        _SymbolMember = value
+                    End Set
+                End Property
+
+            End Class
+            """;
+        CreateSymbol(code, AnalyzerLanguage.VisualBasic).IsAutoProperty().Should().BeFalse();
+    }
+
+    [TestMethod]
+    public void IsAutoProperty_NonpropertySymbol_CS()
+    {
+        const string code = """
+            public class Sample
+            {
+                public void SymbolMember() { }
+            }
+            """;
+        CreateSymbol(code, AnalyzerLanguage.CSharp).IsAutoProperty().Should().BeFalse();
+    }
+
+    [TestMethod]
+    public void IsAutoProperty_NonpropertySymbol_VB()
+    {
+        const string code = """
+            Public Class Sample
+
+                Public Sub SymbolMember()
+                End Sub
+
+            End Class
+            """;
+        CreateSymbol(code, AnalyzerLanguage.VisualBasic).IsAutoProperty().Should().BeFalse();
+    }
+
+    [TestMethod]
+    public void Symbol_IsPublicApi()
+    {
+        testSnippet.MethodSymbol("Base.Method1").IsPubliclyAccessible().Should().BeTrue();
+        testSnippet.MethodSymbol("Base.Method2").IsPubliclyAccessible().Should().BeTrue();
+        testSnippet.PropertySymbol("Base.Property").IsPubliclyAccessible().Should().BeTrue();
+        testSnippet.PropertySymbol("IInterface.Property2").IsPubliclyAccessible().Should().BeTrue();
+        testSnippet.PropertySymbol("Derived1.PrivateProperty").IsPubliclyAccessible().Should().BeFalse();
+        testSnippet.PropertySymbol("Derived1.PrivateProtectedProperty").IsPubliclyAccessible().Should().BeFalse();
+        testSnippet.PropertySymbol("Derived1.ProtectedProperty").IsPubliclyAccessible().Should().BeTrue();
+        testSnippet.PropertySymbol("Derived1.ProtectedInternalProperty").IsPubliclyAccessible().Should().BeTrue();
+        testSnippet.PropertySymbol("Derived1.InternalProperty").IsPubliclyAccessible().Should().BeFalse();
+    }
+
+    [TestMethod]
+    public void Symbol_InterfaceMembersOrMemberOverride()
+    {
+        testSnippet.MethodSymbol("Base.Method1").InterfaceMembers().Should().BeEmpty();
+        testSnippet.MethodSymbol("Base.Method1").GetOverriddenMember().Should().BeNull();
+        testSnippet.PropertySymbol("Derived2.Property").GetOverriddenMember().Should().NotBeNull();
+        testSnippet.PropertySymbol("Derived2.Property2").InterfaceMembers().Should().ContainSingle();
+        testSnippet.MethodSymbol("Derived2.Method3").InterfaceMembers().Should().ContainSingle().Which.Should().Be(testSnippet.MethodSymbol("IInterface.Method3"));
+        testSnippet.MethodSymbol("TwoInterfaces.Method3").InterfaceMembers().Should().BeEquivalentTo([
+            testSnippet.MethodSymbol("IInterface.Method3"),
+            testSnippet.MethodSymbol("IOtherInterface.Method3")]);
+        testSnippet.MethodSymbol("Derived3.Method3").InterfaceMembers().Should().BeEquivalentTo([
+            testSnippet.MethodSymbol("IInterface.Method3"),
+            testSnippet.MethodSymbol("IOtherInterface.Method3")]);
+    }
+
+    [TestMethod]
+    [CombinatorialData]
+    public void Symbol_InterfaceMembers_CrossAssemblyNullableContext(
+        [CombinatorialValues("disable", "enable")] string nullableExternal,
+        [CombinatorialValues("disable", "enable")] string nullableInternal)
+    {
+        // Tests that InterfaceMembers() correctly identifies implementations regardless of nullable context.
+        // See https://github.com/SonarSource/sonar-dotnet-enterprise/pull/1732 for details.
+        var returnAnnotation = nullableExternal == "enable" ? "?" : string.Empty;
+        var paramAnnotation = nullableInternal == "enable" ? "?" : string.Empty;
+
+        var interfaceCode = $$"""
+            #nullable {{nullableExternal}}
+            public interface IExternalInterface
+            {
+                string{{returnAnnotation}} Execute(string parameter);
+            }
+            """;
+
+        var implementationCode = $$"""
+            #nullable {{nullableInternal}}
+            public class Implementation : IExternalInterface
+            {
+                public string Execute(string{{paramAnnotation}} parameter) => "";
+            }
+            """;
+
+        var parseOptions = new CSharpParseOptions(LanguageVersion.Latest);
+        var interfaceMetadata = new SnippetCompiler(interfaceCode, ignoreErrors: false, AnalyzerLanguage.CSharp, parseOptions: parseOptions).Compilation.ToMetadataReference();
+        var implCompilation = new SnippetCompiler(implementationCode, ignoreErrors: false, AnalyzerLanguage.CSharp, [interfaceMetadata], parseOptions: parseOptions).Compilation;
+
+        var method = implCompilation.GetTypeByMetadataName("Implementation").Should().BeAssignableTo<INamedTypeSymbol>()
+            .Which.GetMembers("Execute").Should().ContainSingle()
+            .Which.Should().BeAssignableTo<IMethodSymbol>()
+            .Subject;
+        var interfaceMethod = implCompilation.GetTypeByMetadataName("IExternalInterface").Should().BeAssignableTo<INamedTypeSymbol>()
+            .Which.GetMembers("Execute").Should().ContainSingle()
+            .Which.Should().BeAssignableTo<IMethodSymbol>()
+            .Subject;
+
+        method.InterfaceMembers().Should().ContainSingle().Which.Should().Be(interfaceMethod);
+    }
+
+    [TestMethod]
+    public void Symbol_GetOverriddenMember()
+    {
+        var actualOverriddenMethod = testSnippet.MethodSymbol("Base.Method1").GetOverriddenMember();
+        actualOverriddenMethod.Should().BeNull();
+
+        var expectedOverriddenProperty = testSnippet.PropertySymbol("Base.Property");
+        var propertySymbol = testSnippet.PropertySymbol("Derived2.Property");
+
+        var actualOverriddenProperty = propertySymbol.GetOverriddenMember();
+        actualOverriddenProperty.Should().NotBeNull();
+        actualOverriddenProperty.Should().Be(expectedOverriddenProperty);
+
+        testSnippet.MethodSymbol("Derived3.Method3").GetOverriddenMember().Should().Be(testSnippet.MethodSymbol("Derived2.Method3"));
+        testSnippet.MethodSymbol("Derived3.Method5").GetOverriddenMember().Should().Be(testSnippet.MethodSymbol("Derived2.Method5"));
+    }
+
+    [TestMethod]
+    public void Symbol_IsChangeable()
+    {
+        testSnippet.MethodSymbol("Base.Method1").IsChangeable().Should().BeFalse();
+        testSnippet.MethodSymbol("Base.Method4").IsChangeable().Should().BeTrue();
+        testSnippet.MethodSymbol("Derived2.Method5").IsChangeable().Should().BeFalse();
+        testSnippet.MethodSymbol("Derived2.Method3").IsChangeable().Should().BeFalse();
+    }
+
+    [TestMethod]
+    public void AnyAttributeDerivesFrom_WhenSymbolIsNull_ReturnsFalse() =>
+        ISymbolExtensionsCommon.AnyAttributeDerivesFrom(null, KnownType.Void).Should().BeFalse();
+
+    [TestMethod]
+    public void AnyAttributeDerivesFromAny_WhenSymbolIsNull_ReturnsFalse() =>
+        ISymbolExtensionsCommon.AnyAttributeDerivesFromAny(null, [KnownType.Void]).Should().BeFalse();
+
+    [TestMethod]
+    public void GetAttributesForKnownType_WhenSymbolIsNull_ReturnsEmpty() =>
+        ISymbolExtensionsCommon.GetAttributes(null, KnownType.Void).Should().BeEmpty();
+
+    [TestMethod]
+    public void GetAttributesForKnownTypes_WhenSymbolIsNull_ReturnsEmpty() =>
+        ISymbolExtensionsCommon.GetAttributes(null, [KnownType.Void]).Should().BeEmpty();
+
+    [TestMethod]
+    public void GetParameters_WhenSymbolIsNotMethodOrProperty_ReturnsEmpty()
+    {
+        var symbol = Substitute.For<ISymbol>();
+        symbol.Kind.Returns(SymbolKind.Alias);
+        symbol.GetParameters().Should().BeEmpty();
+    }
+
+    [TestMethod]
+    public void InterfaceMembers_WhenSymbolIsNull_ReturnsEmpty() =>
+        ((ISymbol)null).InterfaceMembers().Should().BeEmpty();
+
+    [TestMethod]
+    public void GetOverriddenMember_WhenSymbolIsNull_ReturnsNull() =>
+        ((ISymbol)null).GetOverriddenMember().Should().BeNull();
+
+    [TestMethod]
+    public void GetEffectiveAccessibility_WhenSymbolIsNull_ReturnsNotApplicable() =>
+        ISymbolExtensionsCommon.GetEffectiveAccessibility(null).Should().Be(Accessibility.NotApplicable);
+
+    [TestMethod]
+    [DataRow(SymbolKind.Alias, "alias")]
+    [DataRow(SymbolKind.ArrayType, "array")]
+    [DataRow(SymbolKind.Assembly, "assembly")]
+    [DataRow(SymbolKind.Discard, "discard")]
+    [DataRow(SymbolKind.DynamicType, "dynamic")]
+    [DataRow(SymbolKind.ErrorType, "error")]
+    [DataRow(SymbolKind.Event, "event")]
+    [DataRow(SymbolKind.Field, "field")]
+    [DataRow(SymbolKind.FunctionPointerType, "function pointer")]
+    [DataRow(SymbolKind.Label, "label")]
+    [DataRow(SymbolKind.Local, "local")]
+    [DataRow(SymbolKind.Namespace, "namespace")]
+    [DataRow(SymbolKind.NetModule, "netmodule")]
+    [DataRow(SymbolKind.Parameter, "parameter")]
+    [DataRow(SymbolKind.PointerType, "pointer")]
+    [DataRow(SymbolKind.Preprocessing, "preprocessing")]
+    [DataRow(SymbolKind.Property, "property")]
+    [DataRow(SymbolKind.RangeVariable, "range variable")]
+    [DataRow(SymbolKind.TypeParameter, "type parameter")]
+    public void GetClassification_SimpleKinds(SymbolKind symbolKind, string expected)
+    {
+        var symbol = Substitute.For<ISymbol>();
+        symbol.Kind.Returns(symbolKind);
+        symbol.GetClassification().Should().Be(expected);
+    }
+
+    [TestMethod]
+    public void GetClassification_UnknowKind()
+    {
+        var symbol = Substitute.For<ISymbol>();
+        symbol.Kind.Returns((SymbolKind)999);
+#if DEBUG
+        new Action(() => symbol.GetClassification()).Should().Throw<NotSupportedException>();
+#else
+        ISymbolExtensionsCommon.GetClassification(symbol).Should().Be("symbol");
+#endif
+    }
+
+    [TestMethod]
+    public void AllPartialParts_MethodSymbol_NonPartialMethod()
+    {
+        const string code = """
+            public partial class Sample
+            {
+                partial void SymbolMember();
+            }
+            """;
+        var symbol = CreateSymbol(code, AnalyzerLanguage.CSharp);
+        var methodSymbol = symbol as IMethodSymbol;
+
+        var result = symbol.AllPartialParts().ToList();
+
+        result.Should().ContainSingle().And.Subject.Should().Contain(methodSymbol);
+    }
+
+    [TestMethod]
+    public void AllPartialParts_MethodSymbol_PartialMethodSameClass()
+    {
+        const string code = """
+            public partial class Sample
+            {
+                partial void SymbolMember();
+                partial void SymbolMember() { }
+            }
+            """;
+        var symbols = CreateSymbols(code, AnalyzerLanguage.CSharp, x => x is MethodDeclarationSyntax);
+
+        var declarationSymbol = symbols[0] as IMethodSymbol;
+        var declarationResult = declarationSymbol.AllPartialParts().ToList();
+        declarationResult.Should().HaveCount(2).And.Contain([declarationSymbol, declarationSymbol.PartialImplementationPart]);
+
+        var implementationSymbol = symbols[1] as IMethodSymbol;
+        var implementationResult = implementationSymbol.AllPartialParts().ToList();
+        implementationResult.Should().HaveCount(2).And.Contain([implementationSymbol, implementationSymbol.PartialDefinitionPart]);
+    }
+
+    [TestMethod]
+    public void AllPartialParts_MethodSymbol_PartialMethodDifferentClass()
+    {
+        const string code = """
+            public partial class Sample
+            {
+                partial void SymbolMember();
+            }
+            public partial class Sample
+            {
+                partial void SymbolMember() { }
+            }
+            """;
+        var symbols = CreateSymbols(code, AnalyzerLanguage.CSharp, x => x is MethodDeclarationSyntax);
+
+        var declarationSymbol = symbols[0] as IMethodSymbol;
+        var declarationResult = declarationSymbol.AllPartialParts().ToList();
+        declarationResult.Should().HaveCount(2).And.Contain([declarationSymbol, declarationSymbol.PartialImplementationPart]);
+
+        var implementationSymbol = symbols[1] as IMethodSymbol;
+        var implementationResult = implementationSymbol.AllPartialParts().ToList();
+        implementationResult.Should().HaveCount(2).And.Contain([implementationSymbol, implementationSymbol.PartialDefinitionPart]);
+    }
+
+    [TestMethod]
+    public void AllPartialParts_PropertySymbol_PartialPropertySameClass()
+    {
+        const string code = """
+            public partial class Sample
+            {
+                public partial int SymbolMember { get; set; }
+                public partial int SymbolMember
+                {
+                    get => 0;
+                    set { }
+                }
+            }
+            """;
+        var symbols = CreateSymbols(code, AnalyzerLanguage.CSharp, x => x is PropertyDeclarationSyntax);
+
+        var declarationSymbol = symbols[0] as IPropertySymbol;
+        var declarationResult = declarationSymbol.AllPartialParts().ToList();
+        declarationResult.Should().HaveCount(2).And.Contain([declarationSymbol, declarationSymbol.PartialImplementationPart]);
+
+        var implementationSymbol = symbols[1] as IPropertySymbol;
+        var implementationResult = implementationSymbol.AllPartialParts().ToList();
+        implementationResult.Should().HaveCount(2).And.Contain([implementationSymbol, implementationSymbol.PartialDefinitionPart]);
+    }
+
+    [TestMethod]
+    public void AllPartialParts_PropertySymbol_PartialPropertyDifferentClass()
+    {
+        const string code = """
+            public partial class Sample
+            {
+                public partial int SymbolMember { get; set; }
+            }
+            public partial class Sample
+            {
+                public partial int SymbolMember
+                {
+                    get => 0;
+                    set { }
+                }
+            }
+            """;
+        var symbols = CreateSymbols(code, AnalyzerLanguage.CSharp, x => x is PropertyDeclarationSyntax);
+
+        var declarationSymbol = symbols[0] as IPropertySymbol;
+        var declarationResult = declarationSymbol.AllPartialParts().ToList();
+        declarationResult.Should().HaveCount(2).And.Contain([declarationSymbol, declarationSymbol.PartialImplementationPart]);
+
+        var implementationSymbol = symbols[1] as IPropertySymbol;
+        var implementationResult = implementationSymbol.AllPartialParts().ToList();
+        implementationResult.Should().HaveCount(2).And.Contain([implementationSymbol, implementationSymbol.PartialDefinitionPart]);
+    }
+
+    [TestMethod]
+    public void AllPartialParts_OtherSymbol()
+    {
+        var result = Substitute.For<ISymbol>().AllPartialParts().ToList();
+        result.Should().ContainSingle();
+    }
+
+    private static ISymbol CreateSymbol(string snippet, AnalyzerLanguage language, ParseOptions parseOptions = null)
+    {
+        var (tree, semanticModel) = TestCompiler.Compile(snippet, false, language, parseOptions: parseOptions);
+        var node = tree.GetRoot().DescendantNodes().Last(x => x.ToString().Contains(" SymbolMember"));
+        return semanticModel.GetDeclaredSymbol(node);
+    }
+
+    private static List<ISymbol> CreateSymbols(string snippet, AnalyzerLanguage language, Func<SyntaxNode, bool> additionalFilter = null)
+    {
+        var (tree, semanticModel) = TestCompiler.Compile(snippet, false, language);
+        var nodes = tree.GetRoot().DescendantNodes().Where(x => x.ToString().Contains("SymbolMember") && (additionalFilter?.Invoke(x) ?? true)).ToList();
+        return nodes.Select(x => semanticModel.GetDeclaredSymbol(x)).ToList();
+    }
+}

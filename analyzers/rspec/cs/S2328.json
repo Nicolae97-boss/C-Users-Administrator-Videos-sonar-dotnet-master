@@ -1,0 +1,21 @@
+{
+  "title": "\"GetHashCode\" should not reference mutable fields",
+  "type": "BUG",
+  "code": {
+    "impacts": {
+      "RELIABILITY": "LOW"
+    },
+    "attribute": "LOGICAL"
+  },
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "10min"
+  },
+  "tags": [],
+  "defaultSeverity": "Minor",
+  "ruleSpecification": "RSPEC-2328",
+  "sqKey": "S2328",
+  "scope": "All",
+  "quickfix": "covered"
+}

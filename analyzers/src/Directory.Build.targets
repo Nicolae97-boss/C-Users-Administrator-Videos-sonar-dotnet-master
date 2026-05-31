@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+  <Import Project="$(MSBuildThisFileDirectory)\..\Common.targets" />
+
+  <PropertyGroup>
+    <!-- `BinariesFolder` - binary files folder used by ITs, NuGet and java packaging -->
+    <BinariesFolder>$(MSBuildThisFileDirectory)..\packaging\binaries\$(ProjectName)</BinariesFolder>
+  </PropertyGroup>
+
+  <Target Name="CleanBinaries" AfterTargets="Clean" Condition="Exists('$(BinariesFolder)')">
+    <RemoveDir Directories="$(BinariesFolder)" />
+  </Target>
+</Project>

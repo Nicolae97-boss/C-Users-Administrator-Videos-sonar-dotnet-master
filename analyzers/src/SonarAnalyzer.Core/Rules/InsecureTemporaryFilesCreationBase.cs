@@ -1,0 +1,43 @@
+﻿/*
+ * SonarAnalyzer for .NET
+ * Copyright (C) SonarSource Sàrl
+ * mailto:info AT sonarsource DOT com
+ *
+ * You can redistribute and/or modify this program under the terms of
+ * the Sonar Source-Available License Version 1, as published by SonarSource Sàrl.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the Sonar Source-Available License for more details.
+ *
+ * You should have received a copy of the Sonar Source-Available License
+ * along with this program; if not, see https://sonarsource.com/license/ssal/
+ */
+
+namespace SonarAnalyzer.Core.Rules
+{
+    public abstract class InsecureTemporaryFilesCreationBase<TMemberAccessSyntax, TSyntaxKind> : SonarDiagnosticAnalyzer<TSyntaxKind>
+        where TMemberAccessSyntax : SyntaxNode
+        where TSyntaxKind : struct
+    {
+        protected const string DiagnosticId = "S5445";
+        private const string VulnerableApiName = "GetTempFileName";
+
+        protected override string MessageFormat => "'Path.GetTempFileName()' is insecure. Use 'Path.GetRandomFileName()' instead.";
+
+        protected InsecureTemporaryFilesCreationBase() : base(DiagnosticId) { }
+
+        protected override void Initialize(SonarAnalysisContext context) =>
+            context.RegisterNodeAction(Language.GeneratedCodeRecognizer, Visit, Language.SyntaxKind.SimpleMemberAccessExpression);
+
+        private void Visit(SonarSyntaxNodeReportingContext context)
+        {
+            var memberAccess = (TMemberAccessSyntax)context.Node;
+            if (Language.Syntax.IsMemberAccessOnKnownType(memberAccess, VulnerableApiName, KnownType.System_IO_Path, context.Model))
+            {
+                context.ReportIssue(Rule, memberAccess);
+            }
+        }
+    }
+}

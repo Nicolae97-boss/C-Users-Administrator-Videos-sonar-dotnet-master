@@ -1,0 +1,168 @@
+﻿/*
+ * SonarAnalyzer for .NET
+ * Copyright (C) SonarSource Sàrl
+ * mailto:info AT sonarsource DOT com
+ *
+ * You can redistribute and/or modify this program under the terms of
+ * the Sonar Source-Available License Version 1, as published by SonarSource Sàrl.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the Sonar Source-Available License for more details.
+ *
+ * You should have received a copy of the Sonar Source-Available License
+ * along with this program; if not, see https://sonarsource.com/license/ssal/
+ */
+
+using System.Reflection;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.VisualBasic;
+using SonarAnalyzer.Core.AnalysisContext;
+using CS = Microsoft.CodeAnalysis.CSharp.Syntax;
+using VB = Microsoft.CodeAnalysis.VisualBasic.Syntax;
+
+namespace SonarAnalyzer.TestFramework.Build;
+
+public class SnippetCompiler
+{
+    public Compilation Compilation { get; }
+    public SyntaxTree Tree { get; }
+    public SemanticModel Model { get; }
+
+    public SnippetCompiler(string code, params MetadataReference[] additionalReferences) : this(code, false, AnalyzerLanguage.CSharp, additionalReferences) { }
+
+    public SnippetCompiler(string code, IEnumerable<MetadataReference> additionalReferences) : this(code, false, AnalyzerLanguage.CSharp, additionalReferences) { }
+
+    public SnippetCompiler(string code, bool ignoreErrors, AnalyzerLanguage language, IEnumerable<MetadataReference> additionalReferences = null, OutputKind outputKind = OutputKind.DynamicallyLinkedLibrary, ParseOptions parseOptions = null)
+    {
+        Compilation = SolutionBuilder
+            .Create()
+            .AddProject(language, outputKind)
+            .AddSnippet(code)
+            .AddReferences(additionalReferences ?? [])
+            .GetCompilation(parseOptions);
+
+        if (!ignoreErrors && HasCompilationErrors(Compilation))
+        {
+            DumpCompilationErrors(Compilation);
+            throw new InvalidOperationException("Test setup error: test code snippet did not compile. See output window for details.");
+        }
+
+        Tree = Compilation.SyntaxTrees.First();
+        Model = Compilation.GetSemanticModel(Tree);
+    }
+
+    public bool IsCSharp() =>
+        Compilation.Language == LanguageNames.CSharp;
+
+    public IEnumerable<TSyntaxNodeType> Nodes<TSyntaxNodeType>() where TSyntaxNodeType : SyntaxNode =>
+        Tree.GetRoot().DescendantNodes().OfType<TSyntaxNodeType>();
+
+    public TSymbolType Symbol<TSymbolType>(SyntaxNode node) where TSymbolType : class, ISymbol =>
+        Model.GetSymbolInfo(node).Symbol as TSymbolType;
+
+    public SyntaxNode MethodDeclaration(string typeDotMethodName)
+    {
+        var nameParts = typeDotMethodName.Split('.');
+        SyntaxNode method = null;
+
+        if (IsCSharp())
+        {
+            var type = Nodes<CS.TypeDeclarationSyntax>().First(x => x.Identifier.ValueText == nameParts[0]);
+            method = type.DescendantNodes().OfType<CS.MethodDeclarationSyntax>().First(x => x.Identifier.ValueText == nameParts[1]);
+        }
+        else
+        {
+            var type = Nodes<VB.TypeStatementSyntax>().First(x => x.Identifier.ValueText == nameParts[0]);
+            method = type.Parent.DescendantNodes().OfType<VB.MethodStatementSyntax>().First(x => x.Identifier.ValueText == nameParts[1]);
+        }
+
+        method.Should().NotBeNull("Test setup error: could not find method declaration in code snippet: Type: {nameParts[0]}, Method: {nameParts[1]}");
+        return method;
+    }
+
+    public INamespaceSymbol NamespaceSymbol(string name)
+    {
+        var symbol = Nodes<CS.BaseNamespaceDeclarationSyntax>()
+            .Concat<SyntaxNode>(Nodes<VB.NamespaceStatementSyntax>())
+            .Select(x => Model.GetDeclaredSymbol(x))
+            .First(x => x.Name == name) as INamespaceSymbol;
+
+        symbol.Should().NotBeNull($"Test setup error: could not find namespace in code snippet: {name}");
+        return symbol;
+    }
+
+    public IEnumerable<T> DeclaredSymbols<T>() where T : ISymbol
+    {
+        var indentifierKind = IsCSharp() ? (int)Microsoft.CodeAnalysis.CSharp.SyntaxKind.IdentifierToken : (int)Microsoft.CodeAnalysis.VisualBasic.SyntaxKind.IdentifierToken;
+        var identfierTokens = Tree.GetRoot().DescendantTokens().Where(x => x.RawKind == indentifierKind).ToList();
+        var symbols = identfierTokens.Select(x => Model.GetDeclaredSymbol(x.Parent)).OfType<T>().ToList();
+        symbols.Should().NotBeEmpty("Test setup error: could not find any symbols of the expected kind in code snippet.");
+        return symbols;
+    }
+
+    public ISymbol DeclaredSymbol(string name) =>
+        DeclaredSymbols<ISymbol>().Should().ContainSingle(x => x.Name == name).Subject;
+
+    public T DeclaredSymbol<T>(string name) where T : ISymbol =>
+        DeclaredSymbols<T>().Should().ContainSingle(x => x.Name == name).Subject;
+
+    public IMethodSymbol MethodSymbol(string typeDotMethodName)
+    {
+        var method = MethodDeclaration(typeDotMethodName);
+        return Model.GetDeclaredSymbol(method) as IMethodSymbol;
+    }
+
+    public IPropertySymbol PropertySymbol(string typeDotPropertyName)
+    {
+        var nameParts = typeDotPropertyName.Split('.');
+        SyntaxNode property = null;
+
+        if (IsCSharp())
+        {
+            var type = Tree.GetRoot().DescendantNodes().OfType<CS.TypeDeclarationSyntax>().First(x => x.Identifier.ValueText == nameParts[0]);
+            property = type.DescendantNodes().OfType<CS.PropertyDeclarationSyntax>().First(x => x.Identifier.ValueText == nameParts[1]);
+        }
+        else
+        {
+            var type = Tree.GetRoot().DescendantNodes().OfType<VB.TypeStatementSyntax>().First(x => x.Identifier.ValueText == nameParts[0]);
+            property = type.DescendantNodes().OfType<VB.PropertyStatementSyntax>().First(x => x.Identifier.ValueText == nameParts[1]);
+        }
+
+        var symbol = Model.GetDeclaredSymbol(property) as IPropertySymbol;
+        symbol.Should().NotBeNull("Test setup error: could not find property in code snippet: Type: {nameParts[0]}, Method: {nameParts[1]}");
+        return symbol;
+    }
+
+    public INamedTypeSymbol TypeByMetadataName(string metadataName) =>
+        Model.Compilation.GetTypeByMetadataName(metadataName);
+
+    public SonarSyntaxNodeReportingContext CreateAnalysisContext(SyntaxNode node)
+    {
+        var nodeContext = new SyntaxNodeAnalysisContext(node, Model, null, null, null, default);
+        return new(AnalysisScaffolding.CreateSonarAnalysisContext(), nodeContext);
+    }
+
+    public Assembly EmitAssembly()
+    {
+        using var memoryStream = new MemoryStream();
+        Compilation.Emit(memoryStream).Success.Should().BeTrue("The provided snippet should emit assembly.");
+        return Assembly.Load(memoryStream.ToArray());
+    }
+
+    private static bool HasCompilationErrors(Compilation compilation) =>
+        compilation.GetDiagnostics().Any(IsCompilationError);
+
+    private static bool IsCompilationError(Diagnostic diagnostic) =>
+        diagnostic.Severity == DiagnosticSeverity.Error && (diagnostic.Id.StartsWith("CS") || diagnostic.Id.StartsWith("BC"));
+
+    private static void DumpCompilationErrors(Compilation compilation)
+    {
+        Console.WriteLine("Diagnostic errors:");
+        foreach (var d in compilation.GetDiagnostics().Where(IsCompilationError))
+        {
+            Console.WriteLine($"  {d.Id} Line: {d.Location.GetMappedLineSpan().StartLinePosition.Line}: {d.GetMessage()}");
+        }
+    }
+}

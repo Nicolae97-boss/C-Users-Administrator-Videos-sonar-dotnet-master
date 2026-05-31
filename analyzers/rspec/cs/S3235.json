@@ -1,0 +1,24 @@
+{
+  "title": "Redundant parentheses should not be used",
+  "type": "CODE_SMELL",
+  "code": {
+    "impacts": {
+      "MAINTAINABILITY": "LOW"
+    },
+    "attribute": "CONVENTIONAL"
+  },
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "2min"
+  },
+  "tags": [
+    "unused",
+    "finding"
+  ],
+  "defaultSeverity": "Minor",
+  "ruleSpecification": "RSPEC-3235",
+  "sqKey": "S3235",
+  "scope": "All",
+  "quickfix": "covered"
+}

@@ -1,0 +1,52 @@
+<h2>Why is this an issue?</h2>
+<p>Properties are accessed like fields which makes them easier to use.</p>
+<p>This rule raises an issue when the name of a <code>public</code> or <code>protected</code> method starts with <code>Get</code>, takes no parameter,
+and returns a value that is not an array.</p>
+<h3>Noncompliant code example</h3>
+<pre>
+using System;
+
+namespace MyLibrary
+{
+    public class Foo
+    {
+        private string name;
+
+        public string GetName()  // Noncompliant
+        {
+            return name;
+        }
+    }
+}
+</pre>
+<h3>Compliant solution</h3>
+<pre>
+using System;
+
+namespace MyLibrary
+{
+    public class Foo
+    {
+        private string name;
+
+        public string Name
+        {
+            get
+            {
+                return name;
+            }
+        }
+    }
+}
+</pre>
+<h3>Exceptions</h3>
+<p>The rule doesn’t raise an issue when the method:</p>
+<ul>
+  <li>Is a constructor</li>
+  <li>Is an <code>override</code></li>
+  <li>Is an interface implementation</li>
+  <li>Is <code>async</code></li>
+  <li>Returns <code>Task</code>, <code>Task&lt;T&gt;</code></li>
+  <li>Is named <code>GetEnumerator</code>, <code>GetAwaiter</code></li>
+</ul>
+

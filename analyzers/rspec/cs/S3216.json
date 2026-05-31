@@ -1,0 +1,26 @@
+{
+  "title": "\"ConfigureAwait(false)\" should be used",
+  "type": "CODE_SMELL",
+  "code": {
+    "impacts": {
+      "MAINTAINABILITY": "HIGH"
+    },
+    "attribute": "COMPLETE"
+  },
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "15min"
+  },
+  "tags": [
+    "multi-threading",
+    "async-await",
+    "suspicious",
+    "performance"
+  ],
+  "defaultSeverity": "Critical",
+  "ruleSpecification": "RSPEC-3216",
+  "sqKey": "S3216",
+  "scope": "Main",
+  "quickfix": "unknown"
+}

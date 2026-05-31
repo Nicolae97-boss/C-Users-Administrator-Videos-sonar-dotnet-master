@@ -1,0 +1,20 @@
+<h2>Why is this an issue?</h2>
+<p>The use of parentheses, even those not required to enforce a desired order of operations, can clarify the intent behind a piece of code. However,
+redundant pairs of parentheses could be misleading and should be removed.</p>
+<h3>Noncompliant code example</h3>
+<pre data-diff-id="1" data-diff-type="noncompliant">
+If a AndAlso ((x + y &gt; 0)) Then ' Noncompliant
+    ' ...
+End If
+
+Return ((x + 1))  ' Noncompliant
+</pre>
+<h3>Compliant solution</h3>
+<pre data-diff-id="1" data-diff-type="compliant">
+If a AndAlso x + y &gt; 0 Then
+    ' ...
+End If
+
+Return x + 1
+</pre>
+

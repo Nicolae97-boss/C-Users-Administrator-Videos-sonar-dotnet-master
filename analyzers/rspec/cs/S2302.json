@@ -1,0 +1,23 @@
+{
+  "title": "\"nameof\" should be used",
+  "type": "CODE_SMELL",
+  "code": {
+    "impacts": {
+      "MAINTAINABILITY": "HIGH"
+    },
+    "attribute": "MODULAR"
+  },
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "5min"
+  },
+  "tags": [
+    "bad-practice"
+  ],
+  "defaultSeverity": "Critical",
+  "ruleSpecification": "RSPEC-2302",
+  "sqKey": "S2302",
+  "scope": "Main",
+  "quickfix": "unknown"
+}

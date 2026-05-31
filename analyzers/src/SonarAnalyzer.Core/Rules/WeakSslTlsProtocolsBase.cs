@@ -1,0 +1,54 @@
+﻿/*
+ * SonarAnalyzer for .NET
+ * Copyright (C) SonarSource Sàrl
+ * mailto:info AT sonarsource DOT com
+ *
+ * You can redistribute and/or modify this program under the terms of
+ * the Sonar Source-Available License Version 1, as published by SonarSource Sàrl.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the Sonar Source-Available License for more details.
+ *
+ * You should have received a copy of the Sonar Source-Available License
+ * along with this program; if not, see https://sonarsource.com/license/ssal/
+ */
+
+namespace SonarAnalyzer.Core.Rules;
+
+public abstract class WeakSslTlsProtocolsBase<TSyntaxKind> : SonarDiagnosticAnalyzer<TSyntaxKind>
+    where TSyntaxKind : struct
+{
+    private const string DiagnosticId = "S4423";
+
+    private readonly HashSet<string> weakProtocols =
+    [
+        "Ssl2",
+        "Ssl3",
+        "Tls",
+        "Tls11",
+        "Default",
+    ];
+
+    protected override string MessageFormat => "Change this code to use a stronger protocol.";
+
+    protected WeakSslTlsProtocolsBase() : base(DiagnosticId) { }
+
+    protected override void Initialize(SonarAnalysisContext context) =>
+        context.RegisterNodeAction(
+            Language.GeneratedCodeRecognizer,
+            c =>
+            {
+                var node = c.Node;
+                if (!Language.Syntax.IsPartOfBinaryNegationOrCondition(node) && IsWeakProtocol(node, c.Model))
+                {
+                    c.ReportIssue(Rule, node);
+                }
+            },
+            Language.SyntaxKind.IdentifierName);
+
+    private bool IsWeakProtocol(SyntaxNode identifierName, SemanticModel model) =>
+        weakProtocols.Contains(Language.Syntax.NodeIdentifier(identifierName).Value.ValueText)
+        && model.GetTypeInfo(identifierName).Type.IsAny(KnownType.System_Net_SecurityProtocolType, KnownType.System_Security_Authentication_SslProtocols);
+}

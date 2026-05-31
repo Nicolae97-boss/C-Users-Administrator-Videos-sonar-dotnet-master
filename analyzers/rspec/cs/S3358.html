@@ -1,0 +1,20 @@
+<h2>Why is this an issue?</h2>
+<p>Nested ternaries are hard to read and can make the order of operations complex to understand.</p>
+<pre>
+public string GetReadableStatus(Job j)
+{
+  return j.IsRunning ? "Running" : j.HasErrors ? "Failed" : "Succeeded";  // Noncompliant
+}
+</pre>
+<p>Instead, use another line to express the nested operation in a separate statement.</p>
+<pre>
+public string GetReadableStatus(Job j)
+{
+  if (j.IsRunning)
+  {
+    return "Running";
+  }
+  return j.HasErrors ? "Failed" : "Succeeded";
+}
+</pre>
+

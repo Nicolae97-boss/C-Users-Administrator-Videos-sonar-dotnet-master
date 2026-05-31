@@ -1,0 +1,177 @@
+<p>When an object is created via deserialization, its constructor is often not executed: the object is instead built directly from its serialized
+data.
+  <br>
+  This means an attacker can create a malicious object and completely bypass security checks.</p>
+<h2>Ask Yourself Whether</h2>
+<ul>
+  <li>Constructors of this <code>Serializable</code> class lack relevant security checks.</li>
+  <li>Security checks performed during deserialization differ from those in the constructor.</li>
+</ul>
+<p>There is a risk if you answered yes to any of those questions.</p>
+<h2>Recommended Secure Coding Practices</h2>
+<ul>
+  <li>Ensure validation is applied to all entry points of an application.</li>
+  <li>Ensure that validation is identical regardless of how an object gets created.</li>
+</ul>
+<h2>Sensitive Code Example</h2>
+<p>In the following examples, <code>Serializable</code> classes either omit validation or apply different validation logic during instantiation than
+during deserialization.</p>
+<p>For classes inheriting <a
+href="https://docs.microsoft.com/en-us/dotnet/api/system.runtime.serialization.iserializable?view=netframework-4.8">ISerializable</a>:</p>
+<pre data-diff-id="1" data-diff-type="noncompliant">
+[Serializable]
+public class InternalUrl : ISerializable
+{
+    private string url;
+
+    public InternalUrl(string tmpUrl)
+    {
+        if(!tmpUrl.StartsWith("http://localhost/"))
+        {
+            url = "http://localhost/default";
+        }
+        else
+        {
+            url = tmpUrl;
+        }
+    }
+
+    // Special Deserialization constructor
+    protected InternalUrl(SerializationInfo info, StreamingContext context)
+    {
+       url = (string) info.GetValue("url", typeof(string));
+       // Sensitive - no validation
+     }
+
+    void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
+    {
+        info.AddValue("url", url);
+    }
+}
+</pre>
+<p>For classes inheriting <a
+href="https://docs.microsoft.com/en-us/dotnet/api/system.runtime.serialization.ideserializationcallback?view=netframework-4.8">IDeserializationCallback</a>:</p>
+<pre data-diff-id="2" data-diff-type="noncompliant">
+[Serializable]
+public class InternalUrl : IDeserializationCallback
+{
+    private string url;
+
+    public InternalUrl(string tmpUrl)
+    {
+        if(!tmpUrl.StartsWith("http://localhost/"))
+        {
+            url = "http://localhost/default";
+        }
+        else
+        {
+            url = tmpUrl;
+        }
+    }
+
+    void IDeserializationCallback.OnDeserialization(object sender)
+    {
+       // Sensitive - no validation
+    }
+}
+</pre>
+<p>For classes inheriting from neither of previous types:</p>
+<pre data-diff-id="3" data-diff-type="noncompliant">
+[Serializable]
+public class InternalUrl
+{
+    private string url;
+
+    public InternalUrl(string tmpUrl)
+    {
+        // Sensitive - no validation
+        url = tmpUrl;
+    }
+}
+</pre>
+<h2>Compliant Solution</h2>
+<p>For classes inheriting <a
+href="https://docs.microsoft.com/en-us/dotnet/api/system.runtime.serialization.iserializable?view=netframework-4.8">ISerializable</a>:</p>
+<pre data-diff-id="1" data-diff-type="compliant">
+[Serializable]
+public class InternalUrl : ISerializable
+{
+    private string url;
+
+    public InternalUrl(string tmpUrl)
+    {
+        url = tmpUrl;
+        validate();
+    }
+
+    // Special Deserialization constructor
+    protected InternalUrl(SerializationInfo info, StreamingContext context)
+    {
+       url = (string) info.GetValue("url", typeof(string));
+       validate();
+     }
+
+    void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
+    {
+        info.AddValue("url", url);
+    }
+
+    void validate()
+    {
+        if(!url.StartsWith("http://localhost/"))
+        {
+            url = "http://localhost/default";
+        }
+    }
+}
+</pre>
+<p>For classes inheriting <a
+href="https://docs.microsoft.com/en-us/dotnet/api/system.runtime.serialization.ideserializationcallback?view=netframework-4.8">IDeserializationCallback</a>:</p>
+<pre data-diff-id="2" data-diff-type="compliant">
+[Serializable]
+public class InternalUrl : IDeserializationCallback
+{
+    private string url;
+
+    public InternalUrl(string tmpUrl)
+    {
+        url = tmpUrl;
+        validate();
+    }
+
+    void IDeserializationCallback.OnDeserialization(object sender)
+    {
+        validate();
+    }
+}
+</pre>
+<p>For classes inheriting from neither of previous types:</p>
+<pre data-diff-id="3" data-diff-type="compliant">
+[Serializable]
+public class InternalUrl
+{
+    private string url;
+
+    public InternalUrl(string tmpUrl)
+    {
+        if(!tmpUrl.StartsWith("http://localhost/"))
+        {
+            url = "http://localhost/default";
+        }
+        else
+        {
+            url = tmpUrl;
+        }
+    }
+}
+</pre>
+<h2>See</h2>
+<ul>
+  <li>CWE - <a href="https://cwe.mitre.org/data/definitions/502">CWE-502 - Deserialization of Untrusted Data</a></li>
+  <li>OWASP - <a href="https://owasp.org/Top10/A08_2021-Software_and_Data_Integrity_Failures/">Top 10 2021 Category A8 - Software and Data Integrity
+  Failures</a></li>
+  <li>OWASP - <a href="https://owasp.org/www-project-top-ten/2017/A8_2017-Insecure_Deserialization">Top 10 2017 Category A8 - Insecure
+  Deserialization</a></li>
+  <li>Microsoft - <a href="https://docs.microsoft.com/en-us/dotnet/framework/misc/security-and-serialization">Security And Serialization</a></li>
+</ul>
+

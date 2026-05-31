@@ -1,0 +1,23 @@
+{
+  "type": "CODE_SMELL",
+  "code": {
+    "impacts": {
+      "MAINTAINABILITY": "MEDIUM"
+    },
+    "attribute": "CLEAR"
+  },
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "5min"
+  },
+  "tags": [
+    "clumsy"
+  ],
+  "defaultSeverity": "Major",
+  "ruleSpecification": "RSPEC-2358",
+  "sqKey": "S2358",
+  "scope": "Main",
+  "quickfix": "covered",
+  "title": "\"IsNot\" should be used instead of \"Not ... Is ...\""
+}

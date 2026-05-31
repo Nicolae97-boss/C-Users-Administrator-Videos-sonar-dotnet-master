@@ -1,0 +1,133 @@
+﻿/*
+ * SonarAnalyzer for .NET
+ * Copyright (C) SonarSource Sàrl
+ * mailto:info AT sonarsource DOT com
+ *
+ * You can redistribute and/or modify this program under the terms of
+ * the Sonar Source-Available License Version 1, as published by SonarSource Sàrl.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the Sonar Source-Available License for more details.
+ *
+ * You should have received a copy of the Sonar Source-Available License
+ * along with this program; if not, see https://sonarsource.com/license/ssal/
+ */
+
+using System.Text;
+using Microsoft.CodeAnalysis.Text;
+
+namespace SonarAnalyzer.TestFramework.Build;
+
+public readonly struct ProjectBuilder
+{
+    private readonly Lazy<SolutionBuilder> solution;
+    private readonly Project project;
+    private readonly string fileExtension;
+
+    public SolutionBuilder Solution => solution.Value;
+    public Project Project => project;
+
+    private ProjectBuilder(Project project)
+    {
+        this.project = project;
+        fileExtension = project.Language == LanguageNames.CSharp ? ".cs" : ".vb";
+        solution = new Lazy<SolutionBuilder>(() => SolutionBuilder.FromSolution(project.Solution));
+    }
+
+    public Compilation GetCompilation(ParseOptions parseOptions = null, CompilationOptions compilationOptions = null)
+    {
+        var projectWithOptions = parseOptions == null ? project : project.WithParseOptions(parseOptions);
+        var compilation = projectWithOptions.GetCompilationAsync().Result;
+        return compilationOptions == null ? compilation : compilation.WithOptions(compilationOptions);
+    }
+
+    public Document FindDocument(string name) =>
+        project.Documents.Single(d => d.Name == name);
+
+    public ProjectBuilder AddReferences(IEnumerable<MetadataReference> references)
+    {
+        if (references == null || !references.Any())
+        {
+            return this;
+        }
+        if (references.Any(x => x.Display.Contains("\\netstandard")))
+        {
+            references = references.Concat(MetadataReferenceFacade.NetStandard);
+        }
+        var existingReferences = project.MetadataReferences.ToHashSet();
+        return FromProject(project.AddMetadataReferences(references.Distinct().Where(x => !existingReferences.Contains(x))));
+    }
+
+    public ProjectBuilder AddProjectReference(Func<SolutionBuilder, ProjectId> getProjectId) =>
+        FromProject(project.AddProjectReference(new ProjectReference(getProjectId(Solution))));
+
+    public ProjectBuilder AddDocuments(IEnumerable<string> paths) =>
+        paths.Aggregate(this, (projectBuilder, path) => projectBuilder.AddDocument(path));
+
+    public ProjectBuilder AddAdditionalDocuments(IEnumerable<string> paths) =>
+        paths.Aggregate(this, (projectBuilder, path) => projectBuilder.AddAdditionalDocument(path));
+
+    public ProjectBuilder AddDocument(string path) =>
+        AddDocument(project, GetTestCaseFileRelativePath(path), File.ReadAllText(path, Encoding.UTF8));
+
+    public ProjectBuilder AddAdditionalDocument(string path) =>
+        AddAdditionalDocument(project, GetTestCaseFileRelativePath(path), File.ReadAllText(path, Encoding.UTF8));
+
+    public ProjectBuilder AddSnippets(params string[] snippets) =>
+        snippets.Aggregate(this, (current, snippet) => current.AddSnippet(snippet));
+
+    public ProjectBuilder AddSnippets(IEnumerable<Snippet> snippets) =>
+        snippets.Aggregate(this, (current, snippet) => current.AddSnippet(snippet.Content, snippet.FileName));
+
+    public ProjectBuilder AddSnippet(string code, string fileName = null)
+    {
+        _ = code ?? throw new ArgumentNullException(nameof(code));
+        fileName ??= $"snippet{project.Documents.Count()}{fileExtension}";
+        return AddDocument(project, fileName, code);
+    }
+
+    public ProjectBuilder AddAnalyzerReferences(IEnumerable<AnalyzerFileReference> sourceGenerators)
+    {
+        _ = sourceGenerators ?? throw new ArgumentNullException(nameof(sourceGenerators));
+        return FromProject(project.WithAnalyzerReferences(sourceGenerators));
+    }
+
+    public static ProjectBuilder FromProject(Project project) =>
+        new(project);
+
+    private string GetTestCaseFileRelativePath(string path)
+    {
+        var testCases = $"TestCases{Path.DirectorySeparatorChar}";
+        _ = path ?? throw new ArgumentNullException(nameof(path));
+        var fileInfo = new FileInfo(path);
+        var testCasesIndex = fileInfo.FullName.IndexOf(testCases, StringComparison.Ordinal);
+        var relativePathFromTestCases = testCasesIndex < 0
+            ? throw new ArgumentException($"{nameof(path)} must contain '{testCases}'", nameof(path))
+            : fileInfo.FullName.Substring(testCasesIndex + testCases.Length);
+
+        if (!IsExtensionOfSupportedType(fileInfo))
+        {
+            throw new ArgumentException($"The file extension '{fileInfo.Extension}' does not match the project language '{project.Language}' nor Razor.", nameof(path));
+        }
+
+        return relativePathFromTestCases;
+    }
+
+    private bool IsExtensionOfSupportedType(FileInfo fileInfo) =>
+        fileInfo.Extension.Equals(fileExtension, StringComparison.OrdinalIgnoreCase)
+        || (fileInfo.Extension.Equals(".razor", StringComparison.OrdinalIgnoreCase) && project.Language == LanguageNames.CSharp)
+        || (fileInfo.Extension.Equals(".cshtml", StringComparison.OrdinalIgnoreCase) && project.Language == LanguageNames.CSharp);
+
+    private static ProjectBuilder AddDocument(Project project, string fileName, string fileContent) =>
+        FromProject(project.AddDocument(fileName, fileContent).Project);
+
+    private static ProjectBuilder AddAdditionalDocument(Project project, string fileName, string fileContent) =>
+        FromProject(project.AddAdditionalDocument(Path.Combine(Directory.GetCurrentDirectory(), "TestCases", fileName), fileContent).Project);
+
+    public ProjectBuilder AddAnalyzerConfigDocument(string editorConfigPath, string content) =>
+        FromProject(project.AddAnalyzerConfigDocument(editorConfigPath, SourceText.From(content), filePath: editorConfigPath).Project);
+}
+
+public record Snippet(string Content, string FileName);

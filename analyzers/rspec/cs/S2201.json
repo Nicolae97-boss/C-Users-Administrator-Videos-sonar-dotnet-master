@@ -1,0 +1,24 @@
+{
+  "title": "Methods without side effects should not have their return values ignored",
+  "type": "BUG",
+  "code": {
+    "impacts": {
+      "RELIABILITY": "MEDIUM"
+    },
+    "attribute": "LOGICAL"
+  },
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "10min"
+  },
+  "tags": [
+    "suspicious",
+    "confusing"
+  ],
+  "defaultSeverity": "Major",
+  "ruleSpecification": "RSPEC-2201",
+  "sqKey": "S2201",
+  "scope": "Main",
+  "quickfix": "infeasible"
+}

@@ -1,0 +1,28 @@
+<h2>Why is this an issue?</h2>
+<p>Nested control flow statements <code>If</code>, <code>Select</code>, <code>For</code>, <code>For Each</code>, <code>While</code>, <code>Do</code>,
+and <code>Try</code> are often key ingredients in creating what’s known as "Spaghetti code". This code smell can make your program difficult to
+understand and maintain.</p>
+<p>When numerous control structures are placed inside one another, the code becomes a tangled, complex web. This significantly reduces the code’s
+readability and maintainability, and it also complicates the testing process.</p>
+<h2>How to fix it</h2>
+<h3>Code examples</h3>
+<p>The following example demonstrates the behavior of the rule with the default threshold of 3 levels of nesting:</p>
+<h4>Noncompliant code example</h4>
+<pre>
+If condition1 ' Compliant - depth = 1
+  ' ...
+  If condition2 ' Compliant - depth = 2
+    ' ...
+    For i = 0 to 10 ' Compliant - depth = 3, not exceeding the limit
+      ' ...
+      If condition4 ' Noncompliant - depth = 4
+        If condition5 ' Depth = 5, exceeding the limit, but issues are only reported on depth = 4
+          ' ...
+        End If
+        Return
+      End If
+    Next
+  End If
+End If
+</pre>
+

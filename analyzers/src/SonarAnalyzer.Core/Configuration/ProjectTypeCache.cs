@@ -1,0 +1,63 @@
+﻿/*
+ * SonarAnalyzer for .NET
+ * Copyright (C) SonarSource Sàrl
+ * mailto:info AT sonarsource DOT com
+ *
+ * You can redistribute and/or modify this program under the terms of
+ * the Sonar Source-Available License Version 1, as published by SonarSource Sàrl.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the Sonar Source-Available License for more details.
+ *
+ * You should have received a copy of the Sonar Source-Available License
+ * along with this program; if not, see https://sonarsource.com/license/ssal/
+ */
+
+using System.Runtime.CompilerServices;
+
+namespace SonarAnalyzer.Core.Configuration;
+
+internal static class ProjectTypeCache
+{
+    // This list is duplicated in sonar-scanner-msbuild and sonar-security and should be manually synchronized after each change.
+    public /* for testing */ static readonly ISet<string> TestAssemblyNames = new HashSet<string>
+    {
+        "dotMemory.Unit",
+        "Microsoft.VisualStudio.TestPlatform.TestFramework", // Name inside https://nuget.info/packages/MSTest.TestFramework/3.11.0
+        "Microsoft.VisualStudio.QualityTools.UnitTestFramework",
+        "MSTest.TestFramework",                              // Name inside https://nuget.info/packages/MSTest.TestFramework/4.0.0
+        "Machine.Specifications",
+        "nunit.framework",
+        "nunitlite",
+        "TechTalk.SpecFlow",
+        "xunit", // Legacy Xunit (v1.x)
+        "xunit.core",
+        "xunit.v3.core",
+        // Assertion
+        "FluentAssertions",
+        "Shouldly",
+        // Mock
+        "FakeItEasy",
+        "Moq",
+        "NSubstitute",
+        "Rhino.Mocks",
+        "Telerik.JustMock"
+    };
+
+    private static readonly ConditionalWeakTable<Compilation, IsTestWrapper> Cache = new ConditionalWeakTable<Compilation, IsTestWrapper>();
+
+    // Should only be used by SonarAnalysisContext
+    public static bool IsTest(this Compilation compilation) =>
+        // We can't detect references => it's MAIN
+        compilation is not null && Cache.GetValue(compilation, x => new IsTestWrapper(x)).Value;
+
+    private sealed class IsTestWrapper
+    {
+        public readonly bool Value;
+
+        public IsTestWrapper(Compilation compilation) =>
+            Value = compilation.ReferencedAssemblyNames.Any(x => TestAssemblyNames.Contains(x.Name));
+    }
+}

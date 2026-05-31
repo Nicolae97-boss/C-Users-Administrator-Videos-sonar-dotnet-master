@@ -1,0 +1,59 @@
+﻿/*
+ * SonarAnalyzer for .NET
+ * Copyright (C) SonarSource Sàrl
+ * mailto:info AT sonarsource DOT com
+ *
+ * You can redistribute and/or modify this program under the terms of
+ * the Sonar Source-Available License Version 1, as published by SonarSource Sàrl.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the Sonar Source-Available License for more details.
+ *
+ * You should have received a copy of the Sonar Source-Available License
+ * along with this program; if not, see https://sonarsource.com/license/ssal/
+ */
+
+namespace SonarAnalyzer.VisualBasic.Rules
+{
+    [DiagnosticAnalyzer(LanguageNames.VisualBasic)]
+    public sealed class DoNotThrowFromDestructors : DoNotThrowFromDestructorsBase
+    {
+        private const string MessageFormat = "Remove this 'Throw' statement.";
+
+        private static readonly DiagnosticDescriptor rule =
+            DescriptorFactory.Create(DiagnosticId, MessageFormat);
+        public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(rule);
+
+        protected override void Initialize(SonarAnalysisContext context)
+        {
+            context.RegisterNodeAction(
+                c =>
+                {
+                    if (IsFinalizer(c.Node.FirstAncestorOrSelf<MethodBlockSyntax>()))
+                    {
+                        c.ReportIssue(rule, c.Node);
+                    }
+                },
+                SyntaxKind.ThrowStatement);
+        }
+
+        private bool IsFinalizer(MethodBlockSyntax methodBlockSyntax)
+        {
+            if (methodBlockSyntax == null)
+            {
+                return false;
+            }
+
+            var subOrFunctionDeclaration = methodBlockSyntax.SubOrFunctionStatement;
+            var noParam = subOrFunctionDeclaration.ParameterList == null || subOrFunctionDeclaration.ParameterList.Parameters.Count == 0;
+            var noTypeParam = subOrFunctionDeclaration.TypeParameterList == null || subOrFunctionDeclaration.TypeParameterList.Parameters.Count == 0;
+            var isSub = subOrFunctionDeclaration.SubOrFunctionKeyword.IsKind(SyntaxKind.SubKeyword);
+            var isProtected = subOrFunctionDeclaration.Modifiers.Any(modifier => modifier.IsKind(SyntaxKind.ProtectedKeyword));
+
+            return noParam && noTypeParam && isSub && isProtected &&
+                subOrFunctionDeclaration.Identifier.ValueText.Equals("Finalize", StringComparison.InvariantCultureIgnoreCase);
+        }
+    }
+}

@@ -1,0 +1,108 @@
+﻿/*
+ * SonarAnalyzer for .NET
+ * Copyright (C) SonarSource Sàrl
+ * mailto:info AT sonarsource DOT com
+ *
+ * You can redistribute and/or modify this program under the terms of
+ * the Sonar Source-Available License Version 1, as published by SonarSource Sàrl.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the Sonar Source-Available License for more details.
+ *
+ * You should have received a copy of the Sonar Source-Available License
+ * along with this program; if not, see https://sonarsource.com/license/ssal/
+ */
+
+using SonarAnalyzer.CSharp.Rules;
+
+namespace SonarAnalyzer.Test.Rules;
+
+[TestClass]
+public class UnchangedLocalVariablesShouldBeConstTest
+{
+    private readonly VerifierBuilder verifier = new VerifierBuilder<UnchangedLocalVariablesShouldBeConst>();
+
+    public TestContext TestContext { get; set; }
+
+    [TestMethod]
+    public void UnchangedLocalVariablesShouldBeConst() =>
+        verifier.AddPaths("UnchangedLocalVariablesShouldBeConst.cs").Verify();
+
+    [TestMethod]
+    public void UnchangedLocalVariablesShouldBeConst_CSharp7() =>
+        verifier.AddSnippet("""
+                            public class Test{
+
+                                public void Message()
+                                {
+                                    var s1 = "Test";                              // Noncompliant {{Add the 'const' modifier to 's1', and replace 'var' with 'string'.}}
+                                    string s2 = $"This is a {nameof(Message)}";   // Compliant - constant string interpolation is only valid in C# 10 and above
+                                    var s3 = $"This is a {nameof(Message)}";      // Compliant - constant string interpolation is only valid in C# 10 and above
+                                    var s4 = "This is a" + $" {nameof(Message)}"; // Compliant - constant string interpolation is only valid in C# 10 and above
+                                    var s5 = $@"This is a {nameof(Message)}";     // Compliant - constant string interpolation is only valid in C# 10 and above
+                                }
+                            }
+                            """)
+        .WithOptions(LanguageOptions.OnlyCSharp7).Verify();
+
+#if NET
+
+    [TestMethod]
+    public void UnchangedLocalVariablesShouldBeConst_TopLevelStatements() =>
+        verifier.AddPaths("UnchangedLocalVariablesShouldBeConst.TopLevelStatements.cs")
+        .WithOptions(LanguageOptions.CSharpLatest)
+        .WithTopLevelStatements()
+        .Verify();
+
+    [TestMethod]
+    public void UnchangedLocalVariablesShouldBeConst_Latest() =>
+        verifier.AddPaths("UnchangedLocalVariablesShouldBeConst.Latest.cs")
+            .WithOptions(LanguageOptions.CSharpLatest)
+            .WithWarningsAsErrors("CS9193")
+            .Verify();
+
+    [TestMethod]
+    public void UnchangedLocalVariablesShouldBeConst_CshtmlIdeGenerated() =>
+        verifier.AddPaths("UnchangedLocalVariablesShouldBeConst.cshtml.ide.g.cs")
+            .WithAdditionalFilePath(AnalysisScaffolding.CreateSonarProjectConfig(TestContext, ProjectType.Product))
+            .WithConcurrentAnalysis(false) // With concurrent analysis the issues are not raised
+            .AddReferences(
+            [
+                AspNetCoreMetadataReference.MicrosoftAspNetCoreMvcCore,
+                AspNetCoreMetadataReference.MicrosoftAspNetCoreMvcViewFeatures,
+                AspNetCoreMetadataReference.MicrosoftAspNetCoreMvcRazor,
+                AspNetCoreMetadataReference.MicrosoftAspNetCoreMvcAbstractions,
+                ..NuGetMetadataReference.MicrosoftExtensionsConfigurationAbstractions("9.0.1"),
+                ..NuGetMetadataReference.MicrosoftAspNetCoreMvcRazorRuntime("2.3.0"),
+            ])
+            .WithOptions(LanguageOptions.CSharpLatest)
+            .Verify();
+
+#endif
+
+    [TestMethod]
+    public void UnchangedLocalVariablesShouldBeConst_InvalidCode() =>
+        verifier.AddSnippet("""
+            // invalid code
+            public void Test_TypeThatCannotBeConst(int arg) // Error [CS0106, CS8805] 
+            {
+                System.Random random = 1; // Error [CS0029]
+            }
+
+            // invalid code
+            public void (int arg) // Error [CS0116, CS0119, CS1525, CS1073, CS1002]
+            {
+                int intVar = 1; // Noncompliant
+            }
+            """).WithOptions(LanguageOptions.FromCSharp9).Verify();
+
+    [TestMethod]
+    public void UnchangedLocalVariablesShouldBeConst_Fix() =>
+        verifier
+            .AddPaths("UnchangedLocalVariablesShouldBeConst.ToFix.cs")
+            .WithCodeFixedPaths("UnchangedLocalVariablesShouldBeConst.Fixed.cs")
+            .WithCodeFix<UnchangedLocalVariablesShouldBeConstCodeFix>()
+            .VerifyCodeFix();
+}

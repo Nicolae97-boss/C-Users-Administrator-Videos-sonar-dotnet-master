@@ -1,0 +1,21 @@
+{
+  "title": "All type parameters should be used in the parameter list to enable type inference",
+  "type": "CODE_SMELL",
+  "code": {
+    "impacts": {
+      "MAINTAINABILITY": "LOW"
+    },
+    "attribute": "CONVENTIONAL"
+  },
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "15min"
+  },
+  "tags": [],
+  "defaultSeverity": "Minor",
+  "ruleSpecification": "RSPEC-4018",
+  "sqKey": "S4018",
+  "scope": "All",
+  "quickfix": "unknown"
+}

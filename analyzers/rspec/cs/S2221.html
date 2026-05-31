@@ -1,0 +1,51 @@
+<h2>Why is this an issue?</h2>
+<p>Catching <code>System.Exception</code> seems like an efficient way to handle multiple possible exceptions. Unfortunately, it traps all exception
+types, including the ones that were not intended to be caught. To prevent any misunderstandings, exception filters should be used. Alternatively, each
+exception type should be in a separate <code>catch</code> block.</p>
+<h3>Noncompliant code example</h3>
+<pre>
+try
+{
+  // do something that might throw a FileNotFoundException or IOException
+}
+catch (Exception e) // Noncompliant
+{
+  // log exception ...
+}
+</pre>
+<h3>Compliant solution</h3>
+<pre>
+try
+{
+  // do something
+}
+catch (Exception e) when (e is FileNotFoundException or IOException)
+{
+  // do something
+}
+</pre>
+<h3>Exceptions</h3>
+<p>The final option is to catch <code>System.Exception</code> and <code>throw</code> it in the last statement in the <code>catch</code> block. This is
+the least-preferred option, as it is an old-style code, which also suffers from performance penalties compared to exception filters.</p>
+<pre>
+try
+{
+  // do something
+}
+catch (Exception e)
+{
+  if (e is FileNotFoundException or IOException)
+  {
+    // do something
+  }
+  else
+  {
+    throw;
+  }
+}
+</pre>
+<h2>Resources</h2>
+<ul>
+  <li>CWE - <a href="https://cwe.mitre.org/data/definitions/396">CWE-396 - Declaration of Catch for Generic Exception</a></li>
+</ul>
+

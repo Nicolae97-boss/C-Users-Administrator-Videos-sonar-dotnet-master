@@ -1,0 +1,268 @@
+﻿/*
+ * SonarAnalyzer for .NET
+ * Copyright (C) SonarSource Sàrl
+ * mailto:info AT sonarsource DOT com
+ *
+ * You can redistribute and/or modify this program under the terms of
+ * the Sonar Source-Available License Version 1, as published by SonarSource Sàrl.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the Sonar Source-Available License for more details.
+ *
+ * You should have received a copy of the Sonar Source-Available License
+ * along with this program; if not, see https://sonarsource.com/license/ssal/
+ */
+
+namespace SonarAnalyzer.CSharp.Rules;
+
+[DiagnosticAnalyzer(LanguageNames.CSharp)]
+public sealed class PrivateFieldUsedAsLocalVariable : SonarDiagnosticAnalyzer
+{
+    private const string DiagnosticId = "S1450";
+    private const string MessageFormat = "Remove the field '{0}' and declare it as a local variable in the relevant methods.";
+
+    private static readonly DiagnosticDescriptor Rule = DescriptorFactory.Create(DiagnosticId, MessageFormat);
+
+    private static readonly ISet<SyntaxKind> NonPrivateModifiers = new HashSet<SyntaxKind>
+    {
+        SyntaxKind.PublicKeyword,
+        SyntaxKind.ProtectedKeyword,
+        SyntaxKind.InternalKeyword,
+    };
+
+    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = ImmutableArray.Create(Rule);
+
+    protected override void Initialize(SonarAnalysisContext context) =>
+        context.RegisterNodeAction(c =>
+            {
+                var typeDeclaration = (TypeDeclarationSyntax)c.Node;
+                if (c.IsRedundantPositionalRecordContext() || typeDeclaration.Modifiers.Any(SyntaxKind.PartialKeyword))
+                {
+                    return;
+                }
+
+                var methodNames = typeDeclaration.Members.OfType<MethodDeclarationSyntax>().Select(x => x.Identifier.ValueText).ToHashSet();
+                var privateFields = GetPrivateFields(c.Model, typeDeclaration);
+                var collector = new FieldAccessCollector(c.Model, privateFields, methodNames);
+                if (!collector.SafeVisit(typeDeclaration))
+                {
+                    // We couldn't finish the exploration so we cannot take any decision
+                    return;
+                }
+
+                foreach (var fieldSymbol in privateFields.Keys.Where(collector.IsRemovableField))
+                {
+                    c.ReportIssue(Rule, privateFields[fieldSymbol], fieldSymbol.Name);
+                }
+            },
+            SyntaxKind.ClassDeclaration,
+            SyntaxKind.StructDeclaration,
+            SyntaxKindEx.RecordDeclaration,
+            SyntaxKindEx.RecordStructDeclaration);
+
+    private static IDictionary<IFieldSymbol, VariableDeclaratorSyntax> GetPrivateFields(SemanticModel model, TypeDeclarationSyntax typeDeclaration)
+    {
+        return typeDeclaration.Members
+            .OfType<FieldDeclarationSyntax>()
+            .Where(IsPrivate)
+            .Where(HasNoAttributes)
+            .SelectMany(x => x.Declaration.Variables)
+            .ToDictionary(
+                x => (IFieldSymbol)model.GetDeclaredSymbol(x),
+                x => x);
+
+        bool IsPrivate(FieldDeclarationSyntax fieldDeclaration) =>
+            !fieldDeclaration.Modifiers.Select(x => x.Kind()).Any(NonPrivateModifiers.Contains);
+
+        bool HasNoAttributes(FieldDeclarationSyntax fieldDeclaration) =>
+            fieldDeclaration.AttributeLists.Count == 0;
+    }
+
+    private sealed class FieldAccessCollector : SafeCSharpSyntaxWalker
+    {
+        // Contains statements that READ field values. First grouped by field symbol (that is read),
+        // then by method/property/ctor symbol (that contains the statements)
+        private readonly Dictionary<IFieldSymbol, Lookup<ISymbol, SyntaxNode>> readsByField = new();
+
+        // Contains statements that WRITE field values. First grouped by field symbol (that is written),
+        // then by method/property/ctor symbol (that contains the statements)
+        private readonly Dictionary<IFieldSymbol, Lookup<ISymbol, SyntaxNode>> writesByField = new();
+
+        // Contains all method/property invocations grouped by the statement that contains them.
+        private readonly Lookup<SyntaxNode, ISymbol> invocations = new();
+
+        private readonly SemanticModel model;
+        private readonly IDictionary<IFieldSymbol, VariableDeclaratorSyntax> privateFields;
+
+        private readonly HashSet<string> methodNames;
+
+        public FieldAccessCollector(SemanticModel model, IDictionary<IFieldSymbol, VariableDeclaratorSyntax> privateFields, HashSet<string> methodNames)
+        {
+            this.model = model;
+            this.privateFields = privateFields;
+            this.methodNames = methodNames;
+        }
+
+        public bool IsRemovableField(IFieldSymbol fieldSymbol)
+        {
+            var writesByEnclosingSymbol = writesByField.GetValueOrDefault(fieldSymbol);
+            var readsByEnclosingSymbol = readsByField.GetValueOrDefault(fieldSymbol);
+
+            // No methods overwrite the field value
+            if (writesByEnclosingSymbol is null)
+            {
+                return false;
+            }
+
+            // A field is removable when no method reads it, or all methods that read it, overwrite it before reading
+            // However, as S4487 reports on fields that are written but not read, we only raise on the latter case
+            return readsByEnclosingSymbol?.Keys.All(ValueOverwrittenBeforeReading) ?? false;
+
+            bool ValueOverwrittenBeforeReading(ISymbol enclosingSymbol)
+            {
+                var writeStatements = writesByEnclosingSymbol.GetValueOrDefault(enclosingSymbol);
+                var readStatements = readsByEnclosingSymbol.GetValueOrDefault(enclosingSymbol);
+
+                // Note that Enumerable.All() will return true if readStatements is empty. The collection
+                // will be empty if the field is read only in property/field initializers or returned from
+                // expression-bodied methods.
+                return writeStatements is not null && (readStatements?.All(IsPrecededWithWrite) ?? false);
+
+                // Returns true when readStatement is preceded with a statement that overwrites fieldSymbol,
+                // or false when readStatement is preceded with an invocation of a method or property that
+                // overwrites fieldSymbol.
+                bool IsPrecededWithWrite(SyntaxNode readStatementOrArrowExpression)
+                {
+                    if (readStatementOrArrowExpression is StatementSyntax readStatement)
+                    {
+                        foreach (var statement in readStatement.GetPreviousStatements())
+                        {
+                            // When the readStatement is preceded with a write statement (that is also not a read statement)
+                            // we want to report this field.
+                            if (IsOverwritingValue(statement))
+                            {
+                                return true;
+                            }
+
+                            // When the readStatement is preceded with an invocation that has side effects, e.g. writes the field
+                            // we don't want to report this field because it could be difficult or impossible to change the code.
+                            if (IsInvocationWithSideEffects(statement))
+                            {
+                                return false;
+                            }
+                        }
+                    }
+                    // ArrowExpressionClauseSyntax cannot be preceded by anything...
+                    return false;
+                }
+
+                bool IsOverwritingValue(StatementSyntax statement) =>
+                    writeStatements.Contains(statement)
+                    && !readStatements.Contains(statement);
+
+                bool IsInvocationWithSideEffects(StatementSyntax statement) =>
+                    invocations.TryGetValue(statement, out var invocationsInStatement)
+                    && invocationsInStatement.Any(writesByEnclosingSymbol.ContainsKey);
+            }
+        }
+
+        public override void VisitIdentifierName(IdentifierNameSyntax node)
+        {
+            if (privateFields.Keys.Any(x => x.Name == node.Identifier.ValueText)
+                || (node.Parent is not InvocationExpressionSyntax
+                    && methodNames.Contains(node.Identifier.ValueText)))
+            {
+                var memberReference = GetTopmostSyntaxWithTheSameSymbol(node);
+                if (memberReference.Symbol is IFieldSymbol fieldSymbol && privateFields.ContainsKey(fieldSymbol))
+                {
+                    ClassifyFieldReference(model.GetEnclosingSymbol(memberReference.Node.SpanStart), memberReference);
+                }
+                else if (memberReference.Symbol is IMethodSymbol && GetParentPseudoStatement(memberReference) is { } pseudoStatement)
+                {
+                    // Adding method group to the invocation list
+                    invocations.GetOrAdd(pseudoStatement, _ => new HashSet<ISymbol>()).Add(memberReference.Symbol);
+                }
+            }
+
+            base.VisitIdentifierName(node);
+        }
+
+        public override void VisitInvocationExpression(InvocationExpressionSyntax node)
+        {
+            if (node.GetMethodCallIdentifier() is { } methodCallIdentifier
+                && methodNames.Contains(methodCallIdentifier.ValueText)
+                && GetTopmostSyntaxWithTheSameSymbol(node) is var memberReference
+                && memberReference.Symbol is IMethodSymbol
+                && GetParentPseudoStatement(memberReference) is { } pseudoStatement)
+            {
+                invocations.GetOrAdd(pseudoStatement, _ => new HashSet<ISymbol>())
+                    .Add(memberReference.Symbol);
+            }
+            base.VisitInvocationExpression(node);
+        }
+
+        // A PseudoStatement is a Statement or an ArrowExpressionClauseSyntax (which denotes an expression-bodied member).
+        private static SyntaxNode GetParentPseudoStatement(NodeAndSymbol memberReference) =>
+            memberReference.Node.Ancestors().FirstOrDefault(x => x is StatementSyntax or ArrowExpressionClauseSyntax);
+
+        /// <summary>
+        /// Stores the statement that contains the provided field reference in one of the "reads" or "writes" collections,
+        /// first grouped by field symbol, then by containing method.
+        /// </summary>
+        private void ClassifyFieldReference(ISymbol enclosingSymbol, NodeAndSymbol fieldReference)
+        {
+            // It is important to create the field access HashSet regardless of the statement (see the local var below)
+            // being null or not, because the rule will not be able to detect field reads from inline property
+            // or field initializers.
+            var fieldAccessInMethod = (IsWrite(fieldReference) ? writesByField : readsByField)
+                .GetOrAdd((IFieldSymbol)fieldReference.Symbol, _ => new Lookup<ISymbol, SyntaxNode>())
+                .GetOrAdd(enclosingSymbol, _ => new HashSet<SyntaxNode>());
+
+            var pseudoStatement = GetParentPseudoStatement(fieldReference);
+            if (pseudoStatement is not null)
+            {
+                fieldAccessInMethod.Add(pseudoStatement);
+            }
+        }
+
+        private static bool IsWrite(NodeAndSymbol fieldReference)
+        {
+            // If the field is not static and is not from the current instance we
+            // consider the reference as read.
+            if (!fieldReference.Symbol.IsStatic && !(fieldReference.Node as ExpressionSyntax).RemoveParentheses().IsOnThis())
+            {
+                return false;
+            }
+
+            return IsLeftSideOfAssignment(fieldReference.Node)
+                   || IsOutArgument(fieldReference.Node);
+
+            bool IsOutArgument(SyntaxNode node) =>
+                node.Parent is ArgumentSyntax argument
+                && argument.RefOrOutKeyword.IsKind(SyntaxKind.OutKeyword);
+
+            bool IsLeftSideOfAssignment(SyntaxNode node) =>
+                node.Parent.IsKind(SyntaxKind.SimpleAssignmentExpression)
+                && node.Parent is AssignmentExpressionSyntax assignmentExpression
+                && assignmentExpression.Left == node;
+        }
+
+        private NodeAndSymbol GetTopmostSyntaxWithTheSameSymbol(SyntaxNode node) =>
+            // All of the cases below could be parts of invocation or other expressions
+            node.Parent switch
+            {
+                // this.identifier or a.identifier or ((a)).identifier, but not identifier.other
+                MemberAccessExpressionSyntax memberAccess when memberAccess.Name == node =>
+                    new NodeAndSymbol(memberAccess.GetSelfOrTopParenthesizedExpression(), model.GetSymbolInfo(memberAccess).Symbol),
+                // this?.identifier or a?.identifier or ((a))?.identifier, but not identifier?.other
+                MemberBindingExpressionSyntax memberBinding when memberBinding.Name == node =>
+                    new NodeAndSymbol(memberBinding.Parent.GetSelfOrTopParenthesizedExpression(), model.GetSymbolInfo(memberBinding).Symbol),
+                // identifier or ((identifier))
+                _ => new NodeAndSymbol(node.GetSelfOrTopParenthesizedExpression(), model.GetSymbolInfo(node).Symbol)
+            };
+    }
+
+    private sealed class Lookup<TKey, TElement> : Dictionary<TKey, HashSet<TElement>> { }
+}

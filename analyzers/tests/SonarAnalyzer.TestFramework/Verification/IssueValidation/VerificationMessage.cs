@@ -1,0 +1,36 @@
+﻿/*
+ * SonarAnalyzer for .NET
+ * Copyright (C) SonarSource Sàrl
+ * mailto:info AT sonarsource DOT com
+ *
+ * You can redistribute and/or modify this program under the terms of
+ * the Sonar Source-Available License Version 1, as published by SonarSource Sàrl.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the Sonar Source-Available License for more details.
+ *
+ * You should have received a copy of the Sonar Source-Available License
+ * along with this program; if not, see https://sonarsource.com/license/ssal/
+ */
+
+namespace SonarAnalyzer.TestFramework.Verification.IssueValidation;
+
+internal sealed record VerificationMessage(string ShortDescription, string FullDescription, string FilePath, int LineNumber)
+{
+    public static readonly VerificationMessage EmptyLine = new(null, null, null, 0);
+
+    public string FullPath => Paths.CurrentTestCases() is { } testCases ? Path.Combine(testCases, FilePath) : null;
+
+    public string ToInvocation()
+    {
+        // VS can process "at What Ever in C:\...".
+        // Rider needs    "at What.Ever() in C:\..." to make it clickable.
+        if (!ShortDescription.Contains(' '))
+        {
+            throw new InvalidOperationException("Short description must contain space for Rider to display clickable link."); // We'll change it to dot: "What Ever" -> "What.Ever()"
+        }
+        return ShortDescription.Replace(' ', '.') + "()";
+    }
+}

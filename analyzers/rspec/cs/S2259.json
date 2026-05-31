@@ -1,0 +1,29 @@
+{
+  "title": "Null pointers should not be dereferenced",
+  "type": "BUG",
+  "code": {
+    "impacts": {
+      "RELIABILITY": "MEDIUM"
+    },
+    "attribute": "LOGICAL"
+  },
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "10min"
+  },
+  "tags": [
+    "cwe",
+    "symbolic-execution"
+  ],
+  "defaultSeverity": "Major",
+  "ruleSpecification": "RSPEC-2259",
+  "sqKey": "S2259",
+  "scope": "Main",
+  "securityStandards": {
+    "CWE": [
+      476
+    ]
+  },
+  "quickfix": "infeasible"
+}

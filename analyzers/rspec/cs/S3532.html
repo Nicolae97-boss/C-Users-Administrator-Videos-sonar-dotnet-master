@@ -1,0 +1,60 @@
+<h2>Why is this an issue?</h2>
+<p>The <code>default</code> clause should take appropriate action. Having an empty <code>default</code> is a waste of keystrokes.</p>
+<h3>Noncompliant code example</h3>
+<pre>
+enum Fruit
+{
+  Apple,
+  Orange,
+  Banana
+}
+
+void PrintName(Fruit fruit)
+{
+  switch(fruit)
+  {
+    case Fruit.Apple:
+      Console.WriteLine("apple");
+      break;
+    default:  //Noncompliant
+      break;
+  }
+}
+</pre>
+<h3>Compliant solution</h3>
+<pre>
+enum Fruit
+{
+  Apple,
+  Orange,
+  Banana
+}
+
+void PrintName(Fruit fruit)
+{
+  switch(fruit)
+  {
+    case Fruit.Apple:
+      Console.WriteLine("apple");
+      break;
+    default:
+      throw new NotSupportedException();
+  }
+}
+</pre>
+<p>or</p>
+<pre>
+void PrintName(Fruit fruit)
+{
+  switch(fruit)
+  {
+    case Fruit.Apple:
+      Console.WriteLine("apple");
+      break;
+  }
+}
+</pre>
+<h3>Exceptions</h3>
+<p><code>default</code> clauses containing only a comment are ignored with the assumption that they are empty on purpose and the comment documents
+why.</p>
+

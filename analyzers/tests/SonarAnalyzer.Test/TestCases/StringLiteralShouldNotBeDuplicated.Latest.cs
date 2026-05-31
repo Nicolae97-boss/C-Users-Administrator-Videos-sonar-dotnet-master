@@ -1,0 +1,221 @@
+﻿using System.Diagnostics;
+using Microsoft.EntityFrameworkCore.Migrations;
+
+namespace CSharp9
+{
+    record Record
+    {
+        private string name = "csharp9"; // Noncompliant {{Define a constant instead of using this literal 'csharp9' 11 times.}}
+        //                    ^^^^^^^^^
+
+        public static readonly string NameReadonly = "csharp9";
+        //                                           ^^^^^^^^^ Secondary
+
+        string Name { get; } = "csharp9";
+        //                     ^^^^^^^^^ Secondary
+
+        void Method()
+        {
+            var x = "csharp9";
+            //      ^^^^^^^^^ Secondary
+
+            void NestedMethod()
+            {
+                var y = "csharp9";
+                //      ^^^^^^^^^ Secondary
+            }
+        }
+
+        [DebuggerDisplay("csharp9", Name = "csharp9", TargetTypeName = "csharp9")] // Compliant - in attribute -> ignored
+        record InnerRecord
+        {
+            private string name = "csharp9";
+            //                    ^^^^^^^^^ Secondary
+
+            public static readonly string NameReadonly = "csharp9";
+            //                                           ^^^^^^^^^ Secondary
+
+            string Name { get; } = "csharp9";
+            //                     ^^^^^^^^^ Secondary
+
+            void Method()
+            {
+                var x = "csharp9";
+                //      ^^^^^^^^^ Secondary
+
+                [Conditional("DEBUG")] // Compliant - in attribute -> ignored
+                static void NestedMethod()
+                {
+                    var y = "csharp9";
+                    //      ^^^^^^^^^ Secondary
+                }
+            }
+        }
+
+        record PositionalRecord(string Name)
+        {
+            private string name = "csharp9";
+            //                    ^^^^^^^^^ Secondary
+        }
+    }
+}
+
+namespace CSharp10
+{
+    record struct RecordStruct
+    {
+        public RecordStruct() { }
+
+        private string name = "csharp10"; // Noncompliant
+
+        public static readonly string NameReadonly = "csharp10";
+        //                                           ^^^^^^^^^^ Secondary
+
+        string Name { get; } = "csharp10";
+        //                     ^^^^^^^^^^ Secondary
+
+        void Method()
+        {
+            var x = "csharp10";
+            //      ^^^^^^^^^^ Secondary
+            void NestedMethod()
+            {
+                var y = "csharp10";
+                //      ^^^^^^^^^^ Secondary
+            }
+        }
+
+        [DebuggerDisplay("csharp10", Name = "csharp10", TargetTypeName = "csharp10")] // Compliant - in attribute -> ignored
+        record struct InnerRecordStruct
+        {
+            public InnerRecordStruct() { }
+
+            private string name = "csharp10";
+            //                    ^^^^^^^^^^ Secondary
+
+            public static readonly string NameReadonly = "csharp10"; // Secondary
+
+            string Name { get; } = "csharp10"; // Secondary
+
+            void Method()
+            {
+                var x = "csharp10"; // Secondary
+
+                [Conditional("foobar")] // Compliant - in attribute -> ignored
+                static void NestedMethod()
+                {
+                    var y = "csharp10"; // Secondary
+                }
+            }
+        }
+
+        record struct PositionalRecordStruct(string Name)
+        {
+            private string name = "csharp10";
+            //                    ^^^^^^^^^^ Secondary
+        }
+    }
+}
+
+namespace CSharp11
+{
+    public class FooNonCompliant
+    {
+        private string NameOne = """csharp11"""; // Noncompliant {{Define a constant instead of using this literal '""csharp11""' 4 times.}}
+
+        private string NameTwo = """csharp11"""; // Secondary
+
+        public const string NameConst = """csharp11"""; // Secondary
+
+        public static readonly string NameReadonly = """csharp11"""; // Secondary
+
+    }
+
+    public class FooLessThanFiveCharacters
+    {
+        private string NameOne = """fo"""; // Compliant (less than 5 characters)
+
+        private string NameTwo = """fo""";
+
+        public const string NameConst = """fo""";
+
+        public static readonly string NameReadonly = """fo""";
+    }
+
+    public class FooNonCompliantStringInterpolation
+    {
+        public string NameOne = $"{"BarBar" // Noncompliant {{Define a constant instead of using this literal 'BarBar' 4 times.}}
+            }";
+
+        public string NameTwo = $"{"BarBar" // Secondary
+            }";
+
+        public static string NameThree = "BarBar"; // Secondary
+
+        public static readonly string NameReadonly = $"{"BarBar"}"; // Secondary
+
+    }
+}
+
+// https://sonarsource.atlassian.net/browse/NET-2276
+public class EfCoreMigration : Migration
+{
+    protected override void Up(MigrationBuilder migrationBuilder)
+    {
+        migrationBuilder.DropIndex(
+            name: "IX_CustomerOrders_OldStatus",
+            table: "CustomerOrders");
+
+        migrationBuilder.RenameColumn(
+            name: "OldStatus",
+            table: "CustomerOrders",
+            newName: "Status");
+
+        migrationBuilder.CreateIndex(
+            name: "IX_CustomerOrders_Status",
+            table: "CustomerOrders",
+            column: "Status");
+    }
+
+    protected override void Down(MigrationBuilder migrationBuilder)
+    {
+        migrationBuilder.DropIndex(
+            name: "IX_CustomerOrders_Status",
+            table: "CustomerOrders");
+
+        migrationBuilder.RenameColumn(
+            name: "Status",
+            table: "CustomerOrders",
+            newName: "OldStatus");
+
+        migrationBuilder.CreateIndex(
+            name: "IX_CustomerOrders_OldStatus",
+            table: "CustomerOrders",
+            column: "OldStatus");
+    }
+}
+
+namespace CSharp13
+{
+    class EscapeSequence
+    {
+        private string backslash = "Filename\u001B" // Noncompliant
+                + "Filename\e"                      // Secondary
+                + "Filename\u001b"                  // Secondary
+                + "Filename\e";                     // Secondary
+    }
+
+    partial class PartialClass
+    {
+        private string some = "csharp13";           // FN NET-3597
+        public partial string Hello => "csharp13";
+        public partial string World { get; }
+    }
+
+    partial class PartialClass
+    {
+        private const string name = "csharp13";
+        public partial string Hello { get; }
+        public partial string World => "csharp13";
+    }
+}

@@ -1,0 +1,24 @@
+{
+  "title": "Arguments of public methods should be validated against Nothing",
+  "type": "CODE_SMELL",
+  "code": {
+    "impacts": {
+      "MAINTAINABILITY": "MEDIUM"
+    },
+    "attribute": "COMPLETE"
+  },
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "5min"
+  },
+  "tags": [
+    "convention",
+    "symbolic-execution"
+  ],
+  "defaultSeverity": "Major",
+  "ruleSpecification": "RSPEC-3900",
+  "sqKey": "S3900",
+  "scope": "All",
+  "quickfix": "unknown"
+}

@@ -1,0 +1,32 @@
+﻿  <Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="TestCases\**\*" />
+    <None Include="TestCases\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SonarAnalyzer.TestFramework\SonarAnalyzer.TestFramework.csproj" />
+    <ProjectReference Include="..\..\src\SonarAnalyzer.CSharp.Styling\SonarAnalyzer.CSharp.Styling.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
+    <Using Include="SonarAnalyzer.Core.Configuration" />
+    <Using Include="SonarAnalyzer.CSharp.Styling.Common.Test" />
+    <Using Include="SonarAnalyzer.CSharp.Styling.Rules" />
+    <Using Include="SonarAnalyzer.TestFramework.Build" />
+    <Using Include="SonarAnalyzer.TestFramework.MetadataReferences" />
+    <Using Include="SonarAnalyzer.TestFramework.Verification" />
+  </ItemGroup>
+
+</Project>

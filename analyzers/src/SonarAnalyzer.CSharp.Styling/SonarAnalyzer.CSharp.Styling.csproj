@@ -1,0 +1,56 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- SonarScanner for .NET would remove the analyzer if the DLL name starts with SonarAnalyzer. See GetAnalyzerSettings S4NET task. -->
+    <AssemblyName>Internal.SonarAnalyzer.CSharp.Styling</AssemblyName>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <!-- .NET Standard target does not copy referenced DLLs into bin folder, so we need to enable it explicitly. -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <!-- Title for DLL file properties -->
+    <AssemblyTitle>Internal Sonar styling analyzer for C#</AssemblyTitle>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--This roslyn should only be updated ~ a year after it is released as updating it too fast will mean that any Sonar CI that is not on the latest roslyn will ignore this dll-->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="5.0.0" />
+    <!-- Fody with ILMerge are buggy. Consult SONARSEC-4584 if you see TypeInitializationException, TypeLoadException, or similar at ITs runtime locally -->
+    <PackageReference Include="Fody" Version="6.9.3" PrivateAssets="All" />
+    <PackageReference Include="ILMerge.Fody" Version="1.24.0" PrivateAssets="All" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <WeaverConfiguration>
+      <Weavers>
+        <ILMerge IncludeAssemblies="Google.Protobuf|SonarAnalyzer.*" />
+      </Weavers>
+    </WeaverConfiguration>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- We need to update NuGet packaging after changing references -->
+    <ProjectReference Include="..\SonarAnalyzer.Core\SonarAnalyzer.Core.csproj" />
+    <ProjectReference Include="..\SonarAnalyzer.CSharp.Core\SonarAnalyzer.CSharp.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Microsoft.CodeAnalysis" />
+    <Using Include="Microsoft.CodeAnalysis.CSharp" />
+    <Using Include="Microsoft.CodeAnalysis.CSharp.Syntax" />
+    <Using Include="Microsoft.CodeAnalysis.Diagnostics" />
+    <Using Include="SonarAnalyzer.Core.AnalysisContext" />
+    <Using Include="SonarAnalyzer.Core.Common" />
+    <Using Include="SonarAnalyzer.Core.Extensions" />
+    <Using Include="SonarAnalyzer.Core.Semantics" />
+    <Using Include="SonarAnalyzer.Core.Semantics.Extensions" />
+    <Using Include="SonarAnalyzer.Core.Syntax.Extensions" />
+    <Using Include="SonarAnalyzer.CSharp.Core.Extensions" />
+    <Using Include="SonarAnalyzer.CSharp.Core.Syntax.Extensions" />
+    <Using Include="SonarAnalyzer.CSharp.Styling.Common" />
+    <Using Include="SonarAnalyzer.CSharp.Styling.Extensions" />
+    <Using Include="StyleCop.Analyzers.Lightup" />
+  </ItemGroup>
+
+  <Target Name="CopyBinaries" AfterTargets="Build">
+    <Copy SourceFiles="$(OutputPath)$(TargetFileName)" DestinationFolder="$(BinariesFolder)" />
+  </Target>
+</Project>

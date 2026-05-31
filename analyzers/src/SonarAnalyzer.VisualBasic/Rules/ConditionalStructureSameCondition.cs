@@ -1,0 +1,54 @@
+﻿/*
+ * SonarAnalyzer for .NET
+ * Copyright (C) SonarSource Sàrl
+ * mailto:info AT sonarsource DOT com
+ *
+ * You can redistribute and/or modify this program under the terms of
+ * the Sonar Source-Available License Version 1, as published by SonarSource Sàrl.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the Sonar Source-Available License for more details.
+ *
+ * You should have received a copy of the Sonar Source-Available License
+ * along with this program; if not, see https://sonarsource.com/license/ssal/
+ */
+
+namespace SonarAnalyzer.VisualBasic.Rules
+{
+    [DiagnosticAnalyzer(LanguageNames.VisualBasic)]
+    public sealed class ConditionalStructureSameCondition : ConditionalStructureSameConditionBase
+    {
+        protected override ILanguageFacade Language => VisualBasicFacade.Instance;
+
+        protected override void Initialize(SonarAnalysisContext context) =>
+            context.RegisterNodeAction(c =>
+                {
+                    var ifBlock = (MultiLineIfBlockSyntax)c.Node;
+                    var conditions = new[] { ifBlock.IfStatement?.Condition }
+                        .Concat(ifBlock.ElseIfBlocks.Select(x => x.ElseIfStatement?.Condition))
+                        .WhereNotNull()
+                        .Select(x => x.RemoveParentheses())
+                        .ToArray();
+
+                    for (var i = 1; i < conditions.Length; i++)
+                    {
+                        CheckConditionAt(c, conditions, i);
+                    }
+                },
+                SyntaxKind.MultiLineIfBlock);
+
+        private void CheckConditionAt(SonarSyntaxNodeReportingContext context, ExpressionSyntax[] conditions, int currentIndex)
+        {
+            for (var i = 0; i < currentIndex; i++)
+            {
+                if (VisualBasicEquivalenceChecker.AreEquivalent(conditions[currentIndex], conditions[i]))
+                {
+                    context.ReportIssue(rule, conditions[currentIndex], conditions[i].LineNumberToReport().ToString());
+                    return;
+                }
+            }
+        }
+    }
+}

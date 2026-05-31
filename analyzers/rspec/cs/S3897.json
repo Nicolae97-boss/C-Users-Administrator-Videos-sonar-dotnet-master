@@ -1,0 +1,23 @@
+{
+  "title": "Classes that provide \"Equals(\u003cT\u003e)\" should implement \"IEquatable\u003cT\u003e\"",
+  "type": "CODE_SMELL",
+  "code": {
+    "impacts": {
+      "MAINTAINABILITY": "LOW"
+    },
+    "attribute": "CLEAR"
+  },
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "2min"
+  },
+  "tags": [
+    "api-design"
+  ],
+  "defaultSeverity": "Minor",
+  "ruleSpecification": "RSPEC-3897",
+  "sqKey": "S3897",
+  "scope": "All",
+  "quickfix": "unknown"
+}

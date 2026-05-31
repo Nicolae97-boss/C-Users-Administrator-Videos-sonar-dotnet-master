@@ -1,0 +1,19 @@
+<h2>Why is this an issue?</h2>
+<p>The <code>... IsNot ...</code> syntax is more compact and more readable than the <code>Not ... Is ...</code> syntax.</p>
+<h3>Noncompliant code example</h3>
+<pre>
+Module Module1
+    Sub Main()
+        Dim a = Not "a" Is Nothing ' Noncompliant
+    End Sub
+End Module
+</pre>
+<h3>Compliant solution</h3>
+<pre>
+Module Module1
+    Sub Main()
+        Dim a = "a" IsNot Nothing  ' Compliant
+    End Sub
+End Module
+</pre>
+

@@ -1,0 +1,23 @@
+<h2>Why is this an issue?</h2>
+<p>Trivial properties, which include no logic but setting and getting a backing field should be converted to auto-implemented properties, yielding
+cleaner and more readable code.</p>
+<h3>Noncompliant code example</h3>
+<pre>
+public class Car
+{
+  private string _make;
+  public string Make // Noncompliant
+  {
+    get { return _make; }
+    set { _make = value; }
+  }
+}
+</pre>
+<h3>Compliant solution</h3>
+<pre>
+public class Car
+{
+  public string Make { get; set; }
+}
+</pre>
+
